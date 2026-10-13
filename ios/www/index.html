@@ -4,18 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Trendline Scale</title>
-<meta name="theme-color" content="#11151c">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Trendline">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600&display=swap">
+<meta name="color-scheme" content="dark light">
 <style>
+@font-face{font-family:"Figtree";font-weight:400;font-display:swap;src:url("fonts/figtree-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"Figtree";font-weight:500;font-display:swap;src:url("fonts/figtree-latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"Figtree";font-weight:600;font-display:swap;src:url("fonts/figtree-latin-600-normal.woff2") format("woff2")}
+@font-face{font-family:"Figtree";font-weight:700;font-display:swap;src:url("fonts/figtree-latin-700-normal.woff2") format("woff2")}
+@font-face{font-family:"Figtree";font-weight:800;font-display:swap;src:url("fonts/figtree-latin-800-normal.woff2") format("woff2")}
+@font-face{font-family:"Martian Mono";font-weight:400;font-display:swap;src:url("fonts/martian-mono-latin-400-normal.woff2") format("woff2")}
+@font-face{font-family:"Martian Mono";font-weight:500;font-display:swap;src:url("fonts/martian-mono-latin-500-normal.woff2") format("woff2")}
+@font-face{font-family:"Martian Mono";font-weight:600;font-display:swap;src:url("fonts/martian-mono-latin-600-normal.woff2") format("woff2")}
 /* Layout: one-column phone app, fixed tab bar at the bottom, cards stacked by importance */
 :root{
   --bg:#11151c; --surface:#1a1f29; --surface-2:#232a36; --line:#2c3442;
@@ -277,8 +275,6 @@ try{ const t = localStorage.getItem(KEY+":tab"); if (t) tab = t; }catch(e){}
 function applyTheme(){
   const t = S.settings.theme;
   if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
-  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
-  document.querySelector('meta[name="theme-color"]').setAttribute("content", bg || "#11151c");
 }
 function setTab(t){
   tab = t; try{ localStorage.setItem(KEY+":tab", t); }catch(e){}
@@ -606,7 +602,7 @@ function renderSettings(){
   <section class="card"><h2>Danger zone</h2>
     <button class="btn danger" id="bd">Erase all data</button>
   </section>
-  <p class="note" style="text-align:center;font-size:12px">Trendline Scale · personal edition</p>`;
+  <p class="note" style="text-align:center;font-size:12px">Trendline Scale · iOS</p>`;
 
   const num = (id, cb) => $(id).addEventListener("change", e => { const raw = e.target.value.trim().replace(",", "."); const v = raw===""?null:parseFloat(raw); if (raw!=="" && isNaN(v)) { toast("Enter a number"); return; } cb(v); save(); toast("Saved"); });
   num("#sg", v => S.settings.goal = v==null?null:fromU(v));
@@ -692,7 +688,6 @@ load(); applyTheme();
 document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
 render();
 if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>

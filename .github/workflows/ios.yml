@@ -17,11 +17,12 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Copy the web app into the iOS bundle
+      - name: Bundle fonts for offline use
         run: |
-          rm -rf ios/www && mkdir -p ios/www
-          cp index.html manifest.webmanifest ios/www/
-          cp -R icons ios/www/
+          mkdir -p ios/www/fonts /tmp/fonts && cd /tmp/fonts
+          npm pack @fontsource/figtree@5 @fontsource/martian-mono@5
+          for f in *.tgz; do tar xzf "$f"; cp package/files/*-latin-[4-8]00-normal.woff2 "$GITHUB_WORKSPACE/ios/www/fonts/"; rm -rf package; done
+          ls "$GITHUB_WORKSPACE/ios/www/fonts"
 
       - name: Generate Xcode project
         working-directory: ios
