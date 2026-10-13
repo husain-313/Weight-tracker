@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trendline Scale</title>
+<meta name="theme-color" content="#11151c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trendline">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-column phone app, fixed tab bar at the bottom, cards stacked by importance */
+:root{
+  --bg:#11151c; --surface:#1a1f29; --surface-2:#232a36; --line:#2c3442;
+  --fg:#e9edf3; --muted:#8c96a8; --accent:#5cc8d6; --accent-ink:#06262b;
+  --good:#5fcf8f; --good-bg:rgba(95,207,143,.14);
+  --bad:#f0806a; --bad-bg:rgba(240,128,106,.15);
+  --warn:#e8c26a;
+  --font-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-num:"Martian Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:18px;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#eef1f5; --surface:#ffffff; --surface-2:#f2f5f9; --line:#dde3ec;
+    --fg:#141a24; --muted:#5d6879; --accent:#0f8b9a; --accent-ink:#ffffff;
+    --good:#1f9a5a; --good-bg:rgba(31,154,90,.12);
+    --bad:#d2533a; --bad-bg:rgba(210,83,58,.12); --warn:#a87b12;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#eef1f5; --surface:#ffffff; --surface-2:#f2f5f9; --line:#dde3ec;
+  --fg:#141a24; --muted:#5d6879; --accent:#0f8b9a; --accent-ink:#ffffff;
+  --good:#1f9a5a; --good-bg:rgba(31,154,90,.12);
+  --bad:#d2533a; --bad-bg:rgba(210,83,58,.12); --warn:#a87b12;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--font-ui);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+header.top h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em}
+header.top .sub{color:var(--muted);font-size:13px}
+
+main{padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 110px);max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.card h2 button{font-size:13px;letter-spacing:0;text-transform:none}
+.link{background:none;border:0;color:var(--accent);padding:4px 0;cursor:pointer;font-weight:600}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:end}
+.hero .big{font-size:52px;font-weight:600;line-height:1}
+.hero .unit{font-size:18px;color:var(--muted);margin-left:4px;font-family:var(--font-ui);font-weight:600}
+.hero .lbl{color:var(--muted);font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip.good{background:var(--good-bg);color:var(--good)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.flat{background:var(--surface-2);color:var(--muted)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--surface-2);border-radius:12px;padding:10px 8px;text-align:center;min-width:0}
+.stat .v{font-size:15px;font-weight:600}
+.stat .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.stat.good .v{color:var(--good)} .stat.bad .v{color:var(--bad)}
+@media (max-width:360px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+/* chart */
+.chart-wrap{position:relative;margin:0 -6px}
+canvas{display:block;width:100%;height:240px;touch-action:pan-y}
+.tip{position:absolute;top:4px;pointer-events:none;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;white-space:nowrap;transform:translateX(-50%)}
+.seg{display:flex;background:var(--surface-2);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1;border:0;background:none;padding:7px 4px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+
+/* progress */
+.bar{height:12px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar > span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.row .k{color:var(--muted);font-size:14px}
+.row .v{font-weight:600}
+.kv{display:flex;flex-direction:column;gap:8px}
+.miles{display:flex;gap:6px;flex-wrap:wrap}
+.mile{font-size:12px;padding:4px 8px;border-radius:8px;background:var(--surface-2);color:var(--muted)}
+.mile.done{background:var(--good-bg);color:var(--good)}
+.mile.next{outline:1.5px solid var(--accent);color:var(--fg)}
+.note{color:var(--muted);font-size:14px;margin:0}
+
+/* logbook */
+.month{display:flex;flex-direction:column}
+.month h3{margin:0 0 4px;font-size:18px;font-weight:800}
+.lhead,.lrow{display:grid;grid-template-columns:52px 1fr 1fr 84px;gap:6px;align-items:center}
+.lhead{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:6px 0;border-bottom:1px solid var(--line)}
+.lhead span:not(:first-child),.lrow > :not(:first-child){text-align:right}
+.lrow{padding:10px 0;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;width:100%;cursor:pointer;text-align:left}
+.lrow:last-child{border-bottom:0}
+.lrow .d{display:flex;flex-direction:column;line-height:1.1}
+.lrow .d b{font-size:17px} .lrow .d small{font-size:11px;color:var(--muted)}
+.lrow .w{font-size:16px} .lrow .t{font-size:14px;color:var(--muted)}
+.lrow .rate{justify-self:end}
+.lrow .memo{grid-column:1/-1;text-align:left !important;font-size:13px;color:var(--muted);margin-top:-2px}
+
+/* reports */
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rbox{background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.rbox .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.rbox .v{font-size:18px;font-weight:600;margin-top:2px}
+.rbox .s{font-size:12px;color:var(--muted)}
+.spark{width:100%;height:56px}
+
+/* settings */
+.set{display:flex;flex-direction:column}
+.set label,.set .item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.set > :last-child{border-bottom:0}
+.set .k{font-weight:600}
+.set .h{display:block;font-size:12.5px;color:var(--muted);font-weight:400}
+.set input,.set select{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:120px;text-align:right;font-family:var(--font-num);font-size:15px}
+.set select{font-family:var(--font-ui);width:auto}
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:var(--surface-2);color:var(--fg)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:var(--bad-bg);color:var(--bad)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btns .btn{flex:1 1 140px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* empty */
+.empty{text-align:center;padding:40px 16px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.empty h2{margin:0;font-size:22px;text-transform:none;letter-spacing:-.01em;color:var(--fg)}
+.empty p{margin:0;color:var(--muted);max-width:34ch}
+
+/* tab bar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px);
+  display:flex;gap:10px;align-items:center;justify-content:center;pointer-events:none}
+.tabbar{pointer-events:auto;display:flex;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--line);border-radius:22px;padding:5px;gap:2px;flex:1;max-width:420px}
+.tabbar button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border-radius:17px;font-size:11px;font-weight:700;cursor:pointer}
+.tabbar button svg{width:22px;height:22px}
+.tabbar button[aria-selected="true"]{background:var(--surface-2);color:var(--fg)}
+.fab{pointer-events:auto;width:60px;height:60px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);flex:none}
+.fab svg{width:28px;height:28px}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:520px;border-radius:24px 24px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;flex-direction:column;gap:14px;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}.bar>span{transition:none}}
+.sheet h2{margin:0;font-size:20px;font-weight:800}
+.field{display:flex;flex-direction:column;gap:6px}
+.field span{font-size:13px;color:var(--muted);font-weight:600}
+.field input,.field textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:17px;width:100%}
+.wbig{display:flex;align-items:center;gap:10px}
+.wbig input{font-family:var(--font-num);font-size:34px;font-weight:600;text-align:center;padding:14px}
+.step{width:52px;height:52px;border-radius:14px;border:0;background:var(--surface-2);font-size:24px;font-weight:700;cursor:pointer;flex:none}
+.err{color:var(--bad);font-size:14px;margin:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 96px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30}
+</style>
+</head>
+<body>
+<header class="top"><h1 id="title">Summary</h1><span class="sub" id="subtitle"></span></header>
+<main id="view"></main>
+
+<nav class="tabs">
+  <div class="tabbar" role="tablist">
+    <button role="tab" data-tab="summary" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>Summary</button>
+    <button role="tab" data-tab="reports" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15v-3M12 15V9M16 15v-5"/></svg>Reports</button>
+    <button role="tab" data-tab="logbook" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Logbook</button>
+    <button role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+  </div>
+  <button class="fab" id="addBtn" aria-label="Add weigh-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+</nav>
+
+<script>
+"use strict";
+/* ---------- storage ---------- */
+const KEY = "trendline-scale-v1";
+const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", step:null, chartRange:90, reportMode:"monthly" };
+let S = { entries:[], settings:{...DEFAULTS} };
+function load(){
+  try{ const raw = localStorage.getItem(KEY); if(raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries)?d.entries:[]; S.settings = {...DEFAULTS, ...(d.settings||{})}; } }catch(e){}
+  sortEntries();
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Could not save. Storage is full or blocked."); } }
+function sortEntries(){ S.entries.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
+if (navigator.storage && navigator.storage.persist) { try{ navigator.storage.persist(); }catch(e){} }
+
+/* ---------- dates & units ---------- */
+const DAY = 864e5;
+const pad = n => String(n).padStart(2,"0");
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const dnum = s => { const [y,m,d] = s.split("-").map(Number); return Date.UTC(y,m-1,d)/DAY; };
+const fromDnum = n => { const d = new Date(n*DAY); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; };
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONF = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const parts = s => { const [y,m,d] = s.split("-").map(Number); return {y,m,d,wd:new Date(Date.UTC(y,m-1,d)).getUTCDay()}; };
+const fmtDate = s => { const p = parts(s); return `${p.d} ${MON[p.m-1]} ${p.y}`; };
+const LB = 2.2046226218;
+const U = () => S.settings.unit;
+const toU = kg => U()==="lb" ? kg*LB : kg;
+const fromU = v => U()==="lb" ? v/LB : v;
+const fw = kg => kg==null||isNaN(kg) ? "—" : toU(kg).toFixed(1);
+const fd = kg => { if(kg==null||isNaN(kg)) return "—"; const v = toU(kg); return (v>0?"+":v<0?"−":"±") + Math.abs(v).toFixed(1); };
+
+/* ---------- the math ---------- */
+// Exponentially smoothed trend that respects gaps between weigh-ins.
+function computeTrend(){
+  const a = S.settings.smooth;
+  let t = null, prev = null;
+  return S.entries.map(e => {
+    const n = dnum(e.date);
+    if (t === null) t = e.kg;
+    else { const days = Math.max(1, n - prev); const f = 1 - Math.pow(1 - a, days); t = t + f * (e.kg - t); }
+    prev = n;
+    return { ...e, n, trend: t };
+  });
+}
+// trend value at an arbitrary day, interpolated between weigh-ins
+function trendAt(rows, n){
+  if (!rows.length || n < rows[0].n) return null;
+  if (n >= rows[rows.length-1].n) return rows[rows.length-1].trend;
+  for (let i=1;i<rows.length;i++){
+    if (rows[i].n >= n){ const A = rows[i-1], B = rows[i]; const f = (n - A.n)/((B.n - A.n)||1); return A.trend + f*(B.trend - A.trend); }
+  }
+  return null;
+}
+function weeklyRateAt(rows, i){
+  const r = rows[i]; const back = trendAt(rows, r.n - 7);
+  if (back === null || i === 0) return null;
+  // ignore when the previous weigh-in is far away; the number would be meaningless
+  if (r.n - rows[i-1].n > 21) return null;
+  return r.trend - back;
+}
+// slope (kg/day) of trend over last `days` days via least squares
+function slope(rows, days){
+  if (rows.length < 2) return null;
+  const end = rows[rows.length-1].n;
+  const pts = rows.filter(r => r.n >= end - days);
+  if (pts.length < 2 || pts[pts.length-1].n - pts[0].n < 6) return null;
+  const mx = pts.reduce((s,p)=>s+p.n,0)/pts.length, my = pts.reduce((s,p)=>s+p.trend,0)/pts.length;
+  let num=0, den=0; for (const p of pts){ num += (p.n-mx)*(p.trend-my); den += (p.n-mx)**2; }
+  return den ? num/den : null;
+}
+function goalDir(){ const g = S.settings.goal, st = startWeight(); if (g==null || st==null) return -1; return g < st ? -1 : 1; }
+function startWeight(){ return S.settings.start ?? (S.entries[0] ? S.entries[0].kg : null); }
+// tone of a change: "good" if it moves toward the goal (losing by default)
+function tone(delta){ if (delta==null || Math.abs(delta) < 0.05) return "flat"; return Math.sign(delta) === goalDir() ? "good" : "bad"; }
+const arrow = d => d==null||Math.abs(d)<0.05 ? "→" : d>0 ? "↑" : "↓";
+
+/* ---------- rendering helpers ---------- */
+const $ = s => document.querySelector(s);
+const view = $("#view");
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let tab = "summary";
+try{ const t = localStorage.getItem(KEY+":tab"); if (t) tab = t; }catch(e){}
+
+function applyTheme(){
+  const t = S.settings.theme;
+  if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+  const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", bg || "#11151c");
+}
+function setTab(t){
+  tab = t; try{ localStorage.setItem(KEY+":tab", t); }catch(e){}
+  document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab===t)));
+  render(); window.scrollTo(0,0);
+}
+document.querySelectorAll(".tabbar button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+$("#addBtn").addEventListener("click", () => openEntry());
+
+function render(){
+  const titles = {summary:"Summary", reports:"Reports", logbook:"Logbook", settings:"Settings"};
+  $("#title").textContent = titles[tab];
+  $("#subtitle").textContent = S.entries.length ? `${S.entries.length} weigh-in${S.entries.length>1?"s":""}` : "";
+  if (tab === "settings") return renderSettings();
+  if (!S.entries.length) return renderEmpty();
+  if (tab === "summary") renderSummary();
+  else if (tab === "reports") renderReports();
+  else renderLogbook();
+}
+
+function renderEmpty(){
+  view.innerHTML = `<section class="card empty">
+    <h2>No weigh-ins yet</h2>
+    <p>Log your weight each morning. The app smooths out daily water swings and shows the trend underneath.</p>
+    <div class="btns" style="width:100%;max-width:340px">
+      <button class="btn primary" id="e1">Add first weigh-in</button>
+      <button class="btn" id="e2">Import a file</button>
+    </div>
+    <button class="link" id="e3">Try with demo data</button>
+  </section>`;
+  $("#e1").onclick = () => openEntry();
+  $("#e2").onclick = () => pickImport();
+  $("#e3").onclick = loadDemo;
+}
+
+/* ---------- summary ---------- */
+function renderSummary(){
+  const rows = computeTrend(); const last = rows[rows.length-1];
+  const s7 = slope(rows, 28); const wk = s7==null?null:s7*7;
+  const ago = dnum(todayStr()) - last.n;
+  const change = n => { const b = trendAt(rows, last.n - n); return b==null?null:last.trend-b; };
+  const ch = [["7 days",change(7)],["30 days",change(30)],["90 days",change(90)],["All time",last.trend-rows[0].trend]];
+  const hi = rows.reduce((m,r)=>r.kg>m.kg?r:m), lo = rows.reduce((m,r)=>r.kg<m.kg?r:m);
+  const S0 = S.settings;
+
+  let html = `<section class="card">
+    <div class="hero">
+      <div><div class="lbl">Trend weight</div><div><span class="big num">${fw(last.trend)}</span><span class="unit">${U()}</span></div></div>
+      <div style="text-align:right">${wk==null?`<span class="chip flat">Need more data</span>`:`<span class="chip ${tone(wk)}">${arrow(wk)} ${Math.abs(toU(wk)).toFixed(2)} ${U()}/wk</span>`}</div>
+      <div class="lbl">Last weigh-in <span class="num">${fw(last.kg)}</span> · ${ago===0?"today":ago===1?"yesterday":ago+" days ago"}</div>
+    </div>
+    <div class="stats">${ch.map(([k,v])=>`<div class="stat ${tone(v)}"><div class="v num">${fd(v)}</div><div class="k">${k}</div></div>`).join("")}</div>
+  </section>`;
+
+  html += `<section class="card"><h2>Weight chart</h2>
+    <div class="seg" id="rng">${[[30,"30D"],[90,"90D"],[365,"1Y"],[0,"All"]].map(([v,l])=>`<button data-r="${v}" aria-pressed="${S0.chartRange===v}">${l}</button>`).join("")}</div>
+    <div class="chart-wrap"><canvas id="chart" aria-label="Weight chart"></canvas><div class="tip" id="tip" hidden></div></div>
+    <div class="legend"><span><i style="background:var(--accent)"></i>Trend</span><span><i style="background:var(--muted);height:6px;width:6px;border-radius:50%"></i>Weigh-in</span>${S0.goal!=null?`<span><i style="background:var(--warn)"></i>Goal</span>`:""}</div>
+  </section>`;
+
+  // goal
+  html += `<section class="card"><h2>Goal progress <button class="link" id="editGoal">${S0.goal==null?"Set goal":"Edit"}</button></h2>`;
+  if (S0.goal == null){
+    html += `<p class="note">Set a goal weight to see your progress, milestones and a predicted finish date.</p>`;
+  } else {
+    const st = startWeight(), g = S0.goal, tot = st - g;
+    const done = tot === 0 ? 1 : Math.max(0, Math.min(1, (st - last.trend)/tot));
+    const left = last.trend - g;
+    const perDay = s7;
+    let eta = "—";
+    if (Math.abs(left) < 0.05) eta = "Reached";
+    else if (perDay && Math.sign(perDay) === -Math.sign(left) && Math.abs(perDay) > 0.001){
+      const days = Math.round(Math.abs(left/perDay)); eta = days > 3650 ? "Over 10 years" : fmtDate(fromDnum(last.n + days));
+    }
+    const step = S0.step ?? (U()==="lb" ? 5/LB : 2);
+    const miles = []; const dir = Math.sign(g - st) || -1;
+    for (let w = st + dir*step; dir<0 ? w > g + 0.01 : w < g - 0.01; w += dir*step) miles.push(w);
+    miles.push(g);
+    const nextIdx = miles.findIndex(m => dir<0 ? last.trend > m : last.trend < m);
+    html += `<div class="row"><span class="num" style="font-weight:600">${fw(st)}</span><span class="num" style="font-size:22px;font-weight:600">${Math.round(done*100)}%</span><span class="num" style="font-weight:600">${fw(g)}</span></div>
+      <div class="bar" role="progressbar" aria-valuenow="${Math.round(done*100)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${done*100}%"></span></div>
+      <div class="kv">
+        <div class="row"><span class="k">To go</span><span class="v num">${Math.abs(left)<0.05?"0.0":Math.abs(toU(left)).toFixed(1)} ${U()}</span></div>
+        <div class="row"><span class="k">Done so far</span><span class="v num">${Math.abs(toU(st-last.trend)).toFixed(1)} ${U()}</span></div>
+        <div class="row"><span class="k">Predicted finish</span><span class="v">${eta}</span></div>
+      </div>
+      <div class="miles">${miles.slice(0,12).map((m,i)=>`<span class="mile num ${nextIdx===-1||i<nextIdx?"done":i===nextIdx?"next":""}">${fw(m)}</span>`).join("")}${miles.length>12?`<span class="mile">+${miles.length-12} more</span>`:""}</div>`;
+  }
+  html += `</section>`;
+
+  // records & BMI
+  html += `<section class="card"><h2>Records</h2><div class="kv">
+    <div class="row"><span class="k">Highest</span><span class="v"><span class="num">${fw(hi.kg)}</span> <small class="k">${fmtDate(hi.date)}</small></span></div>
+    <div class="row"><span class="k">Lowest</span><span class="v"><span class="num">${fw(lo.kg)}</span> <small class="k">${fmtDate(lo.date)}</small></span></div>
+    <div class="row"><span class="k">First weigh-in</span><span class="v"><span class="num">${fw(rows[0].kg)}</span> <small class="k">${fmtDate(rows[0].date)}</small></span></div>
+  </div></section>`;
+
+  html += `<section class="card"><h2>Body mass index</h2>`;
+  if (!S0.height) html += `<p class="note">Add your height in Settings to see BMI.</p><button class="btn" id="goSet">Add height</button>`;
+  else {
+    const bmi = last.trend / Math.pow(S0.height/100, 2);
+    const cat = bmi < 18.5 ? ["Underweight","bad"] : bmi < 25 ? ["Normal range","good"] : bmi < 30 ? ["Overweight","flat"] : ["Obese range","bad"];
+    const pos = Math.max(0, Math.min(100, (bmi-15)/(40-15)*100));
+    html += `<div class="row"><span><span class="num" style="font-size:32px;font-weight:600">${bmi.toFixed(1)}</span></span><span class="chip ${cat[1]}">${cat[0]}</span></div>
+      <div style="position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,var(--warn) 0 14%,var(--good) 14% 40%,var(--warn) 40% 60%,var(--bad) 60%)">
+        <span style="position:absolute;top:-4px;left:calc(${pos}% - 3px);width:6px;height:18px;border-radius:3px;background:var(--fg)"></span></div>
+      <div class="row" style="font-size:11px;color:var(--muted)"><span class="num">15</span><span class="num">18.5</span><span class="num">25</span><span class="num">30</span><span class="num">40</span></div>
+      <p class="note">Based on your trend weight and a height of ${S0.height} cm. BMI does not account for muscle mass.</p>`;
+  }
+  html += `</section>`;
+
+  view.innerHTML = html;
+  document.querySelectorAll("#rng button").forEach(b => b.onclick = () => { S.settings.chartRange = +b.dataset.r; save(); renderSummary(); });
+  $("#editGoal").onclick = () => setTab("settings");
+  const gs = $("#goSet"); if (gs) gs.onclick = () => setTab("settings");
+  drawChart(rows);
+}
+
+/* ---------- chart ---------- */
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function niceStep(range, target){ const raw = range/target; const p = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw/p; return (f<1.5?1:f<3?2:f<7?5:10)*p; }
+function drawChart(allRows){
+  const cv = $("#chart"); if (!cv) return;
+  const R = S.settings.chartRange; const end = allRows[allRows.length-1].n;
+  let rows = R ? allRows.filter(r => r.n >= end - R) : allRows;
+  if (!rows.length) rows = allRows.slice(-1);
+  // include one point before window so the line enters from the edge
+  const x0 = R ? end - R : rows[0].n, x1 = Math.max(end, x0 + 1);
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr,dpr);
+  const vals = rows.flatMap(r => [toU(r.kg), toU(r.trend)]); if (S.settings.goal!=null && R===0) vals.push(toU(S.settings.goal));
+  let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1) { const m=(hi+lo)/2; lo=m-0.5; hi=m+0.5; }
+  const st = niceStep(hi-lo, 4); lo = Math.floor(lo/st)*st; hi = Math.ceil(hi/st)*st;
+  const L = 44, Rp = 10, T = 12, B = 24;
+  const X = n => L + (n - x0)/(x1 - x0)*(W - L - Rp);
+  const Y = v => T + (hi - v)/(hi - lo)*(H - T - B);
+  const muted = css("--muted"), line = css("--line"), accent = css("--accent"), good = css("--good"), bad = css("--bad"), warn = css("--warn"), fg = css("--fg");
+  c.font = `11px ${css("--font-num")}`; c.textBaseline = "middle";
+  // grid
+  for (let v = lo; v <= hi + 1e-9; v += st){
+    c.strokeStyle = line; c.lineWidth = 1; c.beginPath(); c.moveTo(L, Y(v)+.5); c.lineTo(W-Rp, Y(v)+.5); c.stroke();
+    c.fillStyle = muted; c.textAlign = "right"; c.fillText(v.toFixed(st<1?1:0), L-8, Y(v));
+  }
+  // x labels: months or years
+  c.textAlign = "center"; c.textBaseline = "alphabetic";
+  const spanDays = x1 - x0; const d0 = new Date(x0*DAY); let cur = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth()+1, 1));
+  const everyM = spanDays > 1500 ? 12 : spanDays > 500 ? 3 : spanDays > 200 ? 2 : 1;
+  if (spanDays <= 45){ for (let n = Math.ceil(x0/7)*7 + 3; n <= x1; n += 7){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(`${p.d} ${MON[p.m-1]}`, X(n), H-6); } }
+  else {
+    while (cur.getTime()/DAY <= x1){
+      const n = cur.getTime()/DAY, m = cur.getUTCMonth();
+      if (m % everyM === 0){ c.fillStyle = muted; c.fillText(everyM>=12 ? String(cur.getUTCFullYear()) : (m===0 ? String(cur.getUTCFullYear()) : MON[m]), X(n), H-6);
+        c.strokeStyle = line; c.beginPath(); c.moveTo(X(n)+.5, T); c.lineTo(X(n)+.5, H-B); c.stroke(); }
+      cur = new Date(Date.UTC(cur.getUTCFullYear(), m+1, 1));
+    }
+  }
+  // goal
+  if (S.settings.goal != null){ const gy = Y(toU(S.settings.goal)); if (gy >= T && gy <= H-B){ c.setLineDash([5,5]); c.strokeStyle = warn; c.lineWidth = 1.5; c.beginPath(); c.moveTo(L, gy); c.lineTo(W-Rp, gy); c.stroke(); c.setLineDash([]); } }
+  c.save(); c.beginPath(); c.rect(L, 0, W-L-Rp, H); c.clip();
+  // sinkers & floaters: line from each weigh-in to the trend
+  const showDots = rows.length <= 400;
+  for (const r of rows){ const x = X(r.n), yw = Y(toU(r.kg)), yt = Y(toU(r.trend));
+    if (showDots){ c.strokeStyle = (toU(r.kg) - toU(r.trend)) * goalDir() > 0 ? good : bad; c.globalAlpha = .55; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, yw); c.lineTo(x, yt); c.stroke(); c.globalAlpha = 1; } }
+  // trend line (with lead-in point)
+  const firstIdx = allRows.indexOf(rows[0]); const lead = firstIdx > 0 ? [allRows[firstIdx-1], ...rows] : rows;
+  c.strokeStyle = accent; c.lineWidth = 2.5; c.lineJoin = "round"; c.beginPath();
+  lead.forEach((r,i) => { const x = X(r.n), y = Y(toU(r.trend)); i ? c.lineTo(x,y) : c.moveTo(x,y); }); c.stroke();
+  if (showDots) for (const r of rows){ c.fillStyle = fg; c.beginPath(); c.arc(X(r.n), Y(toU(r.kg)), rows.length>120?1.8:2.8, 0, 7); c.fill(); }
+  const lr = rows[rows.length-1]; c.fillStyle = accent; c.beginPath(); c.arc(X(lr.n), Y(toU(lr.trend)), 5, 0, 7); c.fill();
+  c.restore();
+  // scrub tooltip
+  const tip = $("#tip");
+  const show = ev => {
+    const rect = cv.getBoundingClientRect(); const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    let best = rows[0], bd = 1e9; for (const r of rows){ const d = Math.abs(X(r.n) - px); if (d < bd){ bd = d; best = r; } }
+    tip.hidden = false; tip.style.left = Math.max(70, Math.min(W-70, X(best.n)))+"px";
+    tip.innerHTML = `${fmtDate(best.date)} · <b class="num">${fw(best.kg)}</b> <span style="color:var(--muted)">trend <span class="num">${fw(best.trend)}</span></span>`;
+  };
+  cv.onpointerdown = cv.onpointermove = ev => { if (ev.pointerType === "mouse" && ev.buttons === 0 && ev.type==="pointermove") { show(ev); return; } show(ev); };
+  cv.onpointerleave = () => { tip.hidden = true; };
+}
+window.addEventListener("resize", () => { if (tab === "summary" && S.entries.length) drawChart(computeTrend()); });
+
+/* ---------- reports ---------- */
+function periodKey(r, mode){
+  if (mode === "monthly") return r.date.slice(0,7);
+  const wd = (new Date(r.n*DAY).getUTCDay() + 6) % 7; return fromDnum(r.n - wd); // Monday-start week
+}
+function renderReports(){
+  const rows = computeTrend(); const mode = S.settings.reportMode;
+  const groups = new Map(); for (const r of rows){ const k = periodKey(r, mode); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  const keys = [...groups.keys()].sort().reverse();
+  let html = `<div class="seg" id="rmode"><button data-m="weekly" aria-pressed="${mode==="weekly"}">Weekly</button><button data-m="monthly" aria-pressed="${mode==="monthly"}">Monthly</button></div>`;
+  keys.slice(0, 60).forEach((k, idx) => {
+    const g = groups.get(k); const prevKey = keys[idx+1]; const prev = prevKey ? groups.get(prevKey) : null;
+    const lo = g.reduce((m,r)=>r.kg<m.kg?r:m);
+    const avg = g.reduce((s,r)=>s+r.kg,0)/g.length;
+    const endT = g[g.length-1].trend;
+    const prevEnd = prev ? prev[prev.length-1].trend : null;
+    const vsPrev = prevEnd==null ? null : endT - prevEnd;
+    const within = g.length>1 ? endT - g[0].trend : null;
+    let title;
+    if (mode === "monthly"){ const [y,m] = k.split("-").map(Number); title = `${MONF[m-1]} ${y}`; }
+    else { const e = fromDnum(dnum(k)+6); const a = parts(k), b = parts(e); title = `${a.d} ${MON[a.m-1]} – ${b.d} ${MON[b.m-1]} ${b.y}`; }
+    html += `<section class="card"><h2 style="text-transform:none;letter-spacing:-.01em;font-size:19px;color:var(--fg);font-weight:800">${title}<span class="chip flat">${g.length} weigh-in${g.length>1?"s":""}</span></h2>
+      <div class="rgrid">
+        <div class="rbox"><div class="k">Lowest</div><div class="v num">${fw(lo.kg)}</div><div class="s">${fmtDate(lo.date)}</div></div>
+        <div class="rbox"><div class="k">Average</div><div class="v num">${fw(avg)}</div><div class="s">of recorded weights</div></div>
+        <div class="rbox"><div class="k">Trend change</div><div class="v num" style="color:var(--${tone(within)==="flat"?"fg":tone(within)})">${within==null?"—":fd(within)}</div><div class="s">within this ${mode==="monthly"?"month":"week"}</div></div>
+        <div class="rbox"><div class="k">vs previous</div><div class="v num" style="color:var(--${tone(vsPrev)==="flat"?"fg":tone(vsPrev)})">${vsPrev==null?"—":fd(vsPrev)}</div><div class="s">trend at period end</div></div>
+      </div>
+      ${g.length>1?`<canvas class="spark" data-k="${k}"></canvas>`:""}
+    </section>`;
+  });
+  view.innerHTML = html;
+  document.querySelectorAll("#rmode button").forEach(b => b.onclick = () => { S.settings.reportMode = b.dataset.m; save(); renderReports(); });
+  document.querySelectorAll("canvas.spark").forEach(cv => {
+    const g = groups.get(cv.dataset.k); const dpr = devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr,dpr);
+    const v = g.flatMap(r=>[r.kg,r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi-lo<0.4){ const m=(hi+lo)/2; lo=m-.2; hi=m+.2; }
+    const a = g[0].n, b = Math.max(g[g.length-1].n, a+1);
+    const X = n => 6 + (n-a)/(b-a)*(W-12), Y = w => 6 + (hi-w)/(hi-lo)*(H-12);
+    c.strokeStyle = css("--accent"); c.lineWidth = 2; c.beginPath(); g.forEach((r,i)=> i? c.lineTo(X(r.n),Y(r.trend)) : c.moveTo(X(r.n),Y(r.trend))); c.stroke();
+    c.fillStyle = css("--muted"); g.forEach(r => { c.beginPath(); c.arc(X(r.n), Y(r.kg), 2.2, 0, 7); c.fill(); });
+  });
+}
+
+/* ---------- logbook ---------- */
+function renderLogbook(){
+  const rows = computeTrend(); const rates = rows.map((_,i)=>weeklyRateAt(rows,i));
+  const byMonth = new Map(); rows.forEach((r,i) => { const k = r.date.slice(0,7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(i); });
+  let html = "";
+  [...byMonth.keys()].sort().reverse().forEach(k => {
+    const [y,m] = k.split("-").map(Number);
+    html += `<section class="card month"><h3>${MONF[m-1]} ${y}</h3>
+      <div class="lhead"><span>Date</span><span>Recorded</span><span>Trend</span><span>Weekly</span></div>`;
+    byMonth.get(k).slice().reverse().forEach(i => {
+      const r = rows[i], p = parts(r.date), rt = rates[i];
+      html += `<button class="lrow" data-id="${esc(r.id)}"><span class="d"><b class="num">${pad(p.d)}</b><small>${WD[p.wd]}</small></span>
+        <span class="w num">${fw(r.kg)}</span><span class="t num">${fw(r.trend)}</span>
+        <span class="rate">${rt==null?`<span class="chip flat">—</span>`:`<span class="chip ${tone(rt)} num">${arrow(rt)} ${Math.abs(toU(rt)).toFixed(1)}</span>`}</span>
+        ${r.note?`<span class="memo">${esc(r.note)}</span>`:""}</button>`;
+    });
+    html += `</section>`;
+  });
+  view.innerHTML = html;
+  view.querySelectorAll(".lrow").forEach(b => b.onclick = () => openEntry(S.entries.find(e => e.id === b.dataset.id)));
+}
+
+/* ---------- entry sheet ---------- */
+function closeSheet(){ const s = $(".scrim"); if (s) s.remove(); }
+function openEntry(entry){
+  closeSheet();
+  const last = S.entries[S.entries.length-1];
+  const startVal = entry ? toU(entry.kg) : last ? toU(last.kg) : (U()==="lb"?170:75);
+  const el = document.createElement("div"); el.className = "scrim";
+  el.innerHTML = `<form class="sheet" id="ef" novalidate>
+    <div class="row"><h2>${entry?"Edit weigh-in":"New weigh-in"}</h2><button type="button" class="link" id="ec">Cancel</button></div>
+    <div class="wbig"><button type="button" class="step" id="em" aria-label="Decrease">−</button>
+      <input id="ew" inputmode="decimal" autocomplete="off" value="${startVal.toFixed(1)}" aria-label="Weight in ${U()}">
+      <button type="button" class="step" id="ep" aria-label="Increase">+</button></div>
+    <div style="text-align:center;color:var(--muted);margin-top:-8px">${U()}</div>
+    <label class="field"><span>Date</span><input type="date" id="ed" value="${entry?entry.date:todayStr()}" max="${todayStr()}"></label>
+    <label class="field"><span>Note (optional)</span><input id="en" maxlength="140" value="${esc(entry?.note||"")}" placeholder="e.g. after holiday"></label>
+    <p class="err" id="ee" hidden></p>
+    <div class="btns">${entry?`<button type="button" class="btn danger" id="edel">Delete</button>`:""}<button class="btn primary" type="submit">Save</button></div>
+  </form>`;
+  document.body.appendChild(el);
+  const w = $("#ew");
+  setTimeout(() => { w.focus(); w.select(); }, 60);
+  const bump = d => { const v = parseFloat(w.value.replace(",", ".")); if (!isNaN(v)) w.value = (v + d).toFixed(1); };
+  $("#em").onclick = () => bump(-0.1); $("#ep").onclick = () => bump(0.1);
+  $("#ec").onclick = closeSheet;
+  el.addEventListener("click", ev => { if (ev.target === el) closeSheet(); });
+  if (entry){
+    const del = $("#edel"); let armed = false;
+    del.onclick = () => { if (!armed){ armed = true; del.textContent = "Tap again to delete"; return; }
+      S.entries = S.entries.filter(e => e.id !== entry.id); save(); closeSheet(); render(); toast("Weigh-in deleted"); };
+  }
+  $("#ef").addEventListener("submit", ev => {
+    ev.preventDefault();
+    const v = parseFloat(w.value.replace(",", ".")); const date = $("#ed").value; const note = $("#en").value.trim();
+    const err = $("#ee");
+    const kg = fromU(v);
+    if (isNaN(v) || kg < 20 || kg > 400){ err.hidden = false; err.textContent = `Enter a weight between ${toU(20).toFixed(0)} and ${toU(400).toFixed(0)} ${U()}.`; return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.hidden = false; err.textContent = "Pick a date."; return; }
+    if (entry) S.entries = S.entries.filter(e => e.id !== entry.id);
+    const same = S.entries.find(e => e.date === date);
+    if (same){ same.kg = Math.round(kg*1000)/1000; same.note = note || same.note || ""; }
+    else S.entries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, kg: Math.round(kg*1000)/1000, note });
+    sortEntries(); save(); closeSheet(); render(); toast(same ? "Updated that day's weigh-in" : "Saved");
+  });
+}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  const s = S.settings;
+  view.innerHTML = `
+  <section class="card"><h2>Goal</h2><div class="set">
+    <label><span class="k">Goal weight<span class="h">Leave empty for no goal</span></span><input id="sg" inputmode="decimal" value="${s.goal==null?"":toU(s.goal).toFixed(1)}" placeholder="${U()}"></label>
+    <label><span class="k">Starting weight<span class="h">Defaults to your first weigh-in</span></span><input id="ss" inputmode="decimal" value="${s.start==null?"":toU(s.start).toFixed(1)}" placeholder="${S.entries[0]?fw(S.entries[0].kg):U()}"></label>
+    <label><span class="k">Milestone every<span class="h">Steps shown on the goal card</span></span><input id="sm" inputmode="decimal" value="${s.step==null?"":toU(s.step).toFixed(1)}" placeholder="${U()==="lb"?"5.0":"2.0"}"></label>
+  </div></section>
+
+  <section class="card"><h2>Body & units</h2><div class="set">
+    <label><span class="k">Weight units</span><select id="su"><option value="kg" ${s.unit==="kg"?"selected":""}>Kilograms</option><option value="lb" ${s.unit==="lb"?"selected":""}>Pounds</option></select></label>
+    <label><span class="k">Height<span class="h">Used for BMI</span></span><input id="sh" inputmode="decimal" value="${s.height??""}" placeholder="cm"></label>
+  </div></section>
+
+  <section class="card"><h2>How to calculate</h2><div class="set">
+    <label><span class="k">Trend smoothing<span class="h">Heavier smoothing ignores daily swings more but reacts slower</span></span>
+      <select id="sa"><option value="0.2" ${s.smooth==0.2?"selected":""}>Light</option><option value="0.1" ${s.smooth==0.1?"selected":""}>Standard</option><option value="0.05" ${s.smooth==0.05?"selected":""}>Heavy</option></select></label>
+  </div></section>
+
+  <section class="card"><h2>Appearance</h2><div class="set">
+    <label><span class="k">Theme</span><select id="st"><option value="auto" ${s.theme==="auto"?"selected":""}>Match phone</option><option value="dark" ${s.theme==="dark"?"selected":""}>Dark</option><option value="light" ${s.theme==="light"?"selected":""}>Light</option></select></label>
+  </div></section>
+
+  <section class="card"><h2>Backup & import</h2>
+    <p class="note">Your data stays on this phone only. Export a backup now and then so you don't lose it if the app is removed.</p>
+    <div class="btns"><button class="btn primary" id="bx">Export backup</button><button class="btn" id="bc">Export CSV</button><button class="btn" id="bi">Import file</button></div>
+    <p class="note" style="font-size:13px">Import accepts this app's backup (.json) or a CSV with a date column and a weight column, such as a Happy Scale export.</p>
+  </section>
+
+  <section class="card"><h2>Danger zone</h2>
+    <button class="btn danger" id="bd">Erase all data</button>
+  </section>
+  <p class="note" style="text-align:center;font-size:12px">Trendline Scale · personal edition</p>`;
+
+  const num = (id, cb) => $(id).addEventListener("change", e => { const raw = e.target.value.trim().replace(",", "."); const v = raw===""?null:parseFloat(raw); if (raw!=="" && isNaN(v)) { toast("Enter a number"); return; } cb(v); save(); toast("Saved"); });
+  num("#sg", v => S.settings.goal = v==null?null:fromU(v));
+  num("#ss", v => S.settings.start = v==null?null:fromU(v));
+  num("#sm", v => S.settings.step = v==null||v<=0?null:fromU(v));
+  num("#sh", v => S.settings.height = v);
+  $("#su").onchange = e => { S.settings.unit = e.target.value; save(); renderSettings(); toast("Units changed"); };
+  $("#sa").onchange = e => { S.settings.smooth = parseFloat(e.target.value); save(); toast("Saved"); };
+  $("#st").onchange = e => { S.settings.theme = e.target.value; save(); applyTheme(); };
+  $("#bx").onclick = () => download(`weight-backup-${todayStr()}.json`, JSON.stringify(S, null, 1), "application/json");
+  $("#bc").onclick = () => { const rows = computeTrend(); download(`weight-${todayStr()}.csv`, "Date,Weight (kg),Trend (kg),Note\n" + rows.map(r => `${r.date},${r.kg.toFixed(2)},${r.trend.toFixed(2)},"${(r.note||"").replace(/"/g,'""')}"`).join("\n"), "text/csv"); };
+  $("#bi").onclick = pickImport;
+  const bd = $("#bd"); let armed = false;
+  bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; return; } S = { entries:[], settings:{...DEFAULTS} }; save(); applyTheme(); renderSettings(); toast("All data erased"); };
+}
+
+async function download(name, text, type){
+  const blob = new Blob([text], {type});
+  const file = new File([blob], name, {type});
+  if (navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if (e.name === "AbortError") return; } }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+function pickImport(){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,.csv,text/csv,application/json,text/plain";
+  inp.onchange = async () => { const f = inp.files[0]; if (!f) return; const text = await f.text(); importText(text); };
+  inp.click();
+}
+function parseDateAny(s){
+  s = s.trim().replace(/^"|"$/g, "");
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/); if (m){ let a=+m[1], b=+m[2]; // assume M/D unless impossible
+    if (a > 12) return `${m[3]}-${pad(b)}-${pad(a)}`; return `${m[3]}-${pad(a)}-${pad(b)}`; }
+  const d = new Date(s); if (!isNaN(d)) return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return null;
+}
+function splitCSV(line){ const out=[]; let cur="", q=false; for (let i=0;i<line.length;i++){ const ch=line[i]; if (q){ if (ch==='"'){ if (line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; } else if (ch==='"') q=true; else if (ch===","||ch===";"||ch==="\t"){ out.push(cur); cur=""; } else cur+=ch; } out.push(cur); return out; }
+function importText(text){
+  let added = 0, updated = 0;
+  const upsert = (date, kg, note) => { if (!date || isNaN(kg) || kg < 20 || kg > 400) return; const ex = S.entries.find(e => e.date === date);
+    if (ex){ ex.kg = kg; if (note) ex.note = note; updated++; } else { S.entries.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,7), date, kg, note: note||"" }); added++; } };
+  try{
+    const t = text.trim();
+    if (t.startsWith("{")){
+      const d = JSON.parse(t);
+      if (d.settings) S.settings = {...DEFAULTS, ...d.settings};
+      (d.entries||[]).forEach(e => upsert(e.date, +e.kg, e.note));
+    } else {
+      const lines = t.split(/\r?\n/).filter(l => l.trim()); if (!lines.length) throw 0;
+      const head = splitCSV(lines[0]).map(h => h.toLowerCase());
+      const hasHead = head.some(h => /date|weight|kg|lb/.test(h));
+      let di = head.findIndex(h => h.includes("date")); if (di < 0) di = 0;
+      let wi = head.findIndex(h => /weight|kg|lb/.test(h) && !/average|trend|moving|bmi|fat/.test(h)); if (wi < 0) wi = di === 0 ? 1 : 0;
+      const ni = head.findIndex(h => /note|comment/.test(h));
+      const isLb = hasHead && /lb|pound/.test(head[wi] || "") ? true : hasHead && /kg|kilo/.test(head[wi]||"") ? false : null;
+      const parsed = [];
+      for (const l of lines.slice(hasHead?1:0)){ const c = splitCSV(l); const date = parseDateAny(c[di]||""); const w = parseFloat(String(c[wi]||"").replace(",", ".")); if (date && !isNaN(w)) parsed.push([date, w, ni>=0 ? (c[ni]||"").trim() : ""]); }
+      if (!parsed.length) throw 0;
+      const med = parsed.map(p=>p[1]).sort((a,b)=>a-b)[Math.floor(parsed.length/2)];
+      const lb = isLb ?? (med > 140);
+      parsed.forEach(([d,w,n]) => upsert(d, Math.round((lb ? w/LB : w)*1000)/1000, n));
+      if (lb && !S.entries.length) S.settings.unit = "lb";
+    }
+  }catch(e){ toast("Could not read that file. Use a .json backup or a CSV with date and weight columns."); return; }
+  sortEntries(); save(); applyTheme(); render();
+  toast(`Imported: ${added} new, ${updated} updated`);
+}
+
+function loadDemo(){
+  const end = dnum(todayStr()); let w = 86;
+  for (let i = 120; i >= 0; i--){ if (Math.random() < 0.15) continue; w += -0.06 + (Math.random()-0.5)*0.15; const noise = (Math.random()-0.5)*1.2;
+    S.entries.push({ id:"demo"+i, date: fromDnum(end - i), kg: Math.round((w+noise)*10)/10, note: i===60?"Demo data":"" }); }
+  S.settings.goal = 78; sortEntries(); save(); render(); toast("Demo data loaded. Erase it in Settings when you're ready.");
+}
+
+let toastT;
+function toast(msg){ let t = $(".toast"); if (!t){ t = document.createElement("div"); t.className = "toast"; t.setAttribute("role","status"); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+
+/* ---------- boot ---------- */
+load(); applyTheme();
+document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
+render();
+if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
