@@ -20,3 +20,8 @@ A personal weight tracker inspired by Happy Scale. It smooths daily weigh-ins in
 Open the link in **Safari** → Share → **Add to Home Screen**.
 
 Data is stored on the device only. Export a backup from Settings now and then.
+
+## iOS app (IPA)
+Every push to `main` builds an unsigned `TrendlineScale.ipa` with GitHub Actions and attaches it to a new release under **Releases**.
+Install it with a signing tool such as Sideloadly or AltStore using your Apple ID. Free Apple IDs need re-signing every 7 days.
+The iOS app stores data in a file inside the app, and backups open the iOS share sheet.

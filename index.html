@@ -191,11 +191,16 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:8px 12px calc
 const KEY = "trendline-scale-v1";
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", step:null, chartRange:90, reportMode:"monthly" };
 let S = { entries:[], settings:{...DEFAULTS} };
+const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.store);
 function load(){
-  try{ const raw = localStorage.getItem(KEY); if(raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries)?d.entries:[]; S.settings = {...DEFAULTS, ...(d.settings||{})}; } }catch(e){}
+  try{ const raw = (NATIVE && typeof window.__NATIVE_STATE__ === "string") ? window.__NATIVE_STATE__ : localStorage.getItem(KEY); if(raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries)?d.entries:[]; S.settings = {...DEFAULTS, ...(d.settings||{})}; } }catch(e){}
   sortEntries();
 }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Could not save. Storage is full or blocked."); } }
+function save(){
+  const json = JSON.stringify(S);
+  if (NATIVE){ try{ window.webkit.messageHandlers.store.postMessage(json); }catch(e){} }
+  try{ localStorage.setItem(KEY, json); }catch(e){ if (!NATIVE) toast("Could not save. Storage is full or blocked."); }
+}
 function sortEntries(){ S.entries.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
 if (navigator.storage && navigator.storage.persist) { try{ navigator.storage.persist(); }catch(e){} }
 
@@ -619,6 +624,7 @@ function renderSettings(){
 }
 
 async function download(name, text, type){
+  if (NATIVE && window.webkit.messageHandlers.share){ window.webkit.messageHandlers.share.postMessage({name, text}); return; }
   const blob = new Blob([text], {type});
   const file = new File([blob], name, {type});
   if (navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if (e.name === "AbortError") return; } }

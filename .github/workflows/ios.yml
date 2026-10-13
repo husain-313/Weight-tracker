@@ -1,0 +1,58 @@
+name: Build iOS app (IPA)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Copy the web app into the iOS bundle
+        run: |
+          rm -rf ios/www && mkdir -p ios/www
+          cp index.html manifest.webmanifest ios/www/
+          cp -R icons ios/www/
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build (unsigned)
+        working-directory: ios
+        run: |
+          xcodebuild -project TrendlineScale.xcodeproj -scheme TrendlineScale \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+
+      - name: Package IPA
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/TrendlineScale.app Payload/
+          zip -qry TrendlineScale.ipa Payload
+          ls -lh TrendlineScale.ipa
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrendlineScale-ipa
+          path: ios/TrendlineScale.ipa
+
+      - name: Publish release with the IPA
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Trendline Scale ${{ github.run_number }}
+          body: Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
+          files: ios/TrendlineScale.ipa
