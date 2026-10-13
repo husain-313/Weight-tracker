@@ -34,6 +34,7 @@ jobs:
           xcodebuild -project TrendlineScale.xcodeproj -scheme TrendlineScale \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: Package IPA
@@ -41,6 +42,9 @@ jobs:
         run: |
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/TrendlineScale.app Payload/
+          # ad-hoc sign so signing tools keep the Apple Health permission
+          codesign --force --sign - --entitlements TrendlineScale.entitlements Payload/TrendlineScale.app
+          codesign -d --entitlements - Payload/TrendlineScale.app || true
           zip -qry TrendlineScale.ipa Payload
           ls -lh TrendlineScale.ipa
 
@@ -54,6 +58,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline Scale ${{ github.run_number }}
-          body: Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
+          name: Trendline Scale 1.1 (build ${{ github.run_number }})
+          body: |
+            Version 1.1: Apple Health sync, daily weigh-in reminder, automatic backups in the Files app, offline fonts.
+            Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
           files: ios/TrendlineScale.ipa

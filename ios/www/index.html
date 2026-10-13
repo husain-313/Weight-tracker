@@ -130,6 +130,12 @@ canvas{display:block;width:100%;height:240px;touch-action:pan-y}
 .set .h{display:block;font-size:12.5px;color:var(--muted);font-weight:400}
 .set input,.set select{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:120px;text-align:right;font-family:var(--font-num);font-size:15px}
 .set select{font-family:var(--font-ui);width:auto}
+.tg{appearance:none;-webkit-appearance:none;width:51px !important;height:31px;border-radius:999px;background:var(--line) !important;border:0 !important;padding:0 !important;position:relative;cursor:pointer;flex:none;transition:background .2s}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.tg:checked{background:var(--good) !important}
+.tg:checked::after{transform:translateX(20px)}
+.set input[type="time"]{width:auto}
+.set input:disabled{opacity:.45}
 .btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:var(--surface-2);color:var(--fg)}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn.danger{background:var(--bad-bg);color:var(--bad)}
@@ -187,7 +193,8 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:8px 12px calc
 "use strict";
 /* ---------- storage ---------- */
 const KEY = "trendline-scale-v1";
-const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", step:null, chartRange:90, reportMode:"monthly" };
+const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", step:null, chartRange:90, reportMode:"monthly",
+  healthRead:false, healthWrite:false, healthSince:null, healthIgnore:[], remind:false, remindTime:"07:30" };
 let S = { entries:[], settings:{...DEFAULTS} };
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.store);
 function load(){
@@ -199,6 +206,51 @@ function save(){
   if (NATIVE){ try{ window.webkit.messageHandlers.store.postMessage(json); }catch(e){} }
   try{ localStorage.setItem(KEY, json); }catch(e){ if (!NATIVE) toast("Could not save. Storage is full or blocked."); }
 }
+/* ---------- native bridge (iOS app) ---------- */
+let backupInfo = null;
+function nativeCmd(cmd, data){ if (!NATIVE || !window.webkit.messageHandlers.native) return; try{ window.webkit.messageHandlers.native.postMessage(Object.assign({cmd}, data||{})); }catch(e){} }
+window.__native = function(event, p){
+  p = p || {};
+  if (event === "health-samples") mergeHealth(p.samples || [], p.error);
+  else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab==="settings") renderSettings(); } else syncHealth(true); }
+  else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings › Trendline."); if (tab==="settings") renderSettings(); }
+  else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
+  else if (event === "foreground"){ syncHealth(false); scheduleReminder(); if (S.entries.length && tab !== "settings") render(); }
+  else if (event === "toast") toast(p.text || "");
+};
+function backupText(){
+  if (!backupInfo || !backupInfo.last) return "No automatic backup yet. One is saved the next time you change something.";
+  const d = new Date(backupInfo.last);
+  return `Last saved ${d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} at ${d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})} · ${backupInfo.count} weekly cop${backupInfo.count===1?"y":"ies"} kept`;
+}
+function syncHealth(full){
+  if (!NATIVE || !S.settings.healthRead) return;
+  const since = (!full && S.settings.healthSince) ? fromDnum(dnum(S.settings.healthSince) - 7) : "2000-01-01";
+  nativeCmd("healthRead", {since});
+}
+function mergeHealth(samples, error){
+  if (error) { toast("Could not read from Apple Health."); return; }
+  const ignore = new Set(S.settings.healthIgnore || []);
+  let added = 0, changed = 0;
+  for (const smp of samples){
+    if (!smp || !smp.date || !(smp.kg > 20 && smp.kg < 400) || ignore.has(smp.date)) continue;
+    const ex = S.entries.find(e => e.date === smp.date);
+    if (!ex){ S.entries.push({ id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }); added++; }
+    else if (ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
+  }
+  S.settings.healthSince = todayStr();
+  sortEntries(); save();
+  if (added || changed){ render(); scheduleReminder(); toast(added ? `Added ${added} weigh-in${added>1?"s":""} from Apple Health` : "Updated weigh-ins from Apple Health"); }
+  else if (tab === "settings") renderSettings();
+}
+function scheduleReminder(){
+  if (!NATIVE) return;
+  const [h, m] = (S.settings.remindTime || "07:30").split(":").map(Number);
+  let body = "Step on the scale before breakfast.";
+  if (S.entries.length){ const r = computeTrend(); body = `Your trend is ${fw(r[r.length-1].trend)} ${U()}. Step on the scale before breakfast.`; }
+  nativeCmd("reminder", { enabled: !!S.settings.remind, hour: isNaN(h)?7:h, minute: isNaN(m)?30:m, weighedToday: S.entries.some(e => e.date === todayStr()), body });
+}
+
 function sortEntries(){ S.entries.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
 if (navigator.storage && navigator.storage.persist) { try{ navigator.storage.persist(); }catch(e){} }
 
@@ -516,7 +568,7 @@ function renderLogbook(){
       html += `<button class="lrow" data-id="${esc(r.id)}"><span class="d"><b class="num">${pad(p.d)}</b><small>${WD[p.wd]}</small></span>
         <span class="w num">${fw(r.kg)}</span><span class="t num">${fw(r.trend)}</span>
         <span class="rate">${rt==null?`<span class="chip flat">—</span>`:`<span class="chip ${tone(rt)} num">${arrow(rt)} ${Math.abs(toU(rt)).toFixed(1)}</span>`}</span>
-        ${r.note?`<span class="memo">${esc(r.note)}</span>`:""}</button>`;
+        ${r.note?`<span class="memo">${esc(r.note)}</span>`:r.src==="health"?`<span class="memo">From Apple Health</span>`:""}</button>`;
     });
     html += `</section>`;
   });
@@ -552,7 +604,8 @@ function openEntry(entry){
   if (entry){
     const del = $("#edel"); let armed = false;
     del.onclick = () => { if (!armed){ armed = true; del.textContent = "Tap again to delete"; return; }
-      S.entries = S.entries.filter(e => e.id !== entry.id); save(); closeSheet(); render(); toast("Weigh-in deleted"); };
+      if (entry.src === "health"){ S.settings.healthIgnore = [...new Set([...(S.settings.healthIgnore||[]), entry.date])]; }
+      S.entries = S.entries.filter(e => e.id !== entry.id); save(); closeSheet(); render(); scheduleReminder(); toast("Weigh-in deleted"); };
   }
   $("#ef").addEventListener("submit", ev => {
     ev.preventDefault();
@@ -563,16 +616,31 @@ function openEntry(entry){
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.hidden = false; err.textContent = "Pick a date."; return; }
     if (entry) S.entries = S.entries.filter(e => e.id !== entry.id);
     const same = S.entries.find(e => e.date === date);
-    if (same){ same.kg = Math.round(kg*1000)/1000; same.note = note || same.note || ""; }
-    else S.entries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, kg: Math.round(kg*1000)/1000, note });
+    const kgR = Math.round(kg*1000)/1000;
+    if (same){ same.kg = kgR; same.note = note || same.note || ""; delete same.src; }
+    else S.entries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, kg: kgR, note });
     sortEntries(); save(); closeSheet(); render(); toast(same ? "Updated that day's weigh-in" : "Saved");
+    if (S.settings.healthWrite) nativeCmd("healthWrite", { date, kg: kgR });
+    scheduleReminder();
   });
 }
 
 /* ---------- settings ---------- */
 function renderSettings(){
   const s = S.settings;
-  view.innerHTML = `
+  const nativeCards = NATIVE ? `
+  <section class="card"><h2>Apple Health</h2><div class="set">
+    <label><span class="k">Import weigh-ins<span class="h">Reads weight from your smart scale or other apps. Your own entries always win.</span></span><input type="checkbox" class="tg" id="hr" ${s.healthRead?"checked":""}></label>
+    <label><span class="k">Save weigh-ins to Health<span class="h">Each weight you log here is added to Apple Health</span></span><input type="checkbox" class="tg" id="hw" ${s.healthWrite?"checked":""}></label>
+    ${s.healthRead?`<div class="item"><span class="k">Last checked<span class="h">${s.healthSince?fmtDate(s.healthSince):"Not yet"}</span></span><button class="btn" id="hs" style="padding:8px 14px">Check now</button></div>`:""}
+  </div></section>
+
+  <section class="card"><h2>Daily reminder</h2><div class="set">
+    <label><span class="k">Remind me to weigh in<span class="h">Skipped on days you've already logged</span></span><input type="checkbox" class="tg" id="rm" ${s.remind?"checked":""}></label>
+    <label><span class="k">Time</span><input type="time" id="rt" value="${s.remindTime||"07:30"}" ${s.remind?"":"disabled"}></label>
+  </div></section>` : "";
+
+  view.innerHTML = nativeCards + `
   <section class="card"><h2>Goal</h2><div class="set">
     <label><span class="k">Goal weight<span class="h">Leave empty for no goal</span></span><input id="sg" inputmode="decimal" value="${s.goal==null?"":toU(s.goal).toFixed(1)}" placeholder="${U()}"></label>
     <label><span class="k">Starting weight<span class="h">Defaults to your first weigh-in</span></span><input id="ss" inputmode="decimal" value="${s.start==null?"":toU(s.start).toFixed(1)}" placeholder="${S.entries[0]?fw(S.entries[0].kg):U()}"></label>
@@ -594,7 +662,8 @@ function renderSettings(){
   </div></section>
 
   <section class="card"><h2>Backup & import</h2>
-    <p class="note">Your data stays on this phone only. Export a backup now and then so you don't lose it if the app is removed.</p>
+    ${NATIVE ? `<p class="note">Automatic backups are saved in the Files app under <b>On My iPhone › Trendline › Backups</b>. Copy one to iCloud Drive now and then to keep it safe if the app is deleted.</p>
+    <p class="note" id="bkinfo" style="font-size:13px">${backupText()}</p>` : `<p class="note">Your data stays on this phone only. Export a backup now and then so you don't lose it if the app is removed.</p>`}
     <div class="btns"><button class="btn primary" id="bx">Export backup</button><button class="btn" id="bc">Export CSV</button><button class="btn" id="bi">Import file</button></div>
     <p class="note" style="font-size:13px">Import accepts this app's backup (.json) or a CSV with a date column and a weight column, such as a Happy Scale export.</p>
   </section>
@@ -602,7 +671,7 @@ function renderSettings(){
   <section class="card"><h2>Danger zone</h2>
     <button class="btn danger" id="bd">Erase all data</button>
   </section>
-  <p class="note" style="text-align:center;font-size:12px">Trendline Scale · iOS</p>`;
+  <p class="note" style="text-align:center;font-size:12px">Trendline Scale${window.__APP_VERSION__?" "+esc(window.__APP_VERSION__):""}</p>`;
 
   const num = (id, cb) => $(id).addEventListener("change", e => { const raw = e.target.value.trim().replace(",", "."); const v = raw===""?null:parseFloat(raw); if (raw!=="" && isNaN(v)) { toast("Enter a number"); return; } cb(v); save(); toast("Saved"); });
   num("#sg", v => S.settings.goal = v==null?null:fromU(v));
@@ -615,8 +684,16 @@ function renderSettings(){
   $("#bx").onclick = () => download(`weight-backup-${todayStr()}.json`, JSON.stringify(S, null, 1), "application/json");
   $("#bc").onclick = () => { const rows = computeTrend(); download(`weight-${todayStr()}.csv`, "Date,Weight (kg),Trend (kg),Note\n" + rows.map(r => `${r.date},${r.kg.toFixed(2)},${r.trend.toFixed(2)},"${(r.note||"").replace(/"/g,'""')}"`).join("\n"), "text/csv"); };
   $("#bi").onclick = pickImport;
+  if (NATIVE){
+    $("#hr").onchange = e => { S.settings.healthRead = e.target.checked; save(); if (e.target.checked) nativeCmd("healthAuthorize", {write: S.settings.healthWrite}); renderSettings(); };
+    $("#hw").onchange = e => { S.settings.healthWrite = e.target.checked; save(); if (e.target.checked) nativeCmd("healthAuthorize", {write: true}); };
+    const hs = $("#hs"); if (hs) hs.onclick = () => { syncHealth(true); toast("Checking Apple Health…"); };
+    $("#rm").onchange = e => { S.settings.remind = e.target.checked; save(); scheduleReminder(); renderSettings(); if (e.target.checked) toast(`Reminder set for ${S.settings.remindTime}`); };
+    $("#rt").onchange = e => { if (!e.target.value) return; S.settings.remindTime = e.target.value; save(); scheduleReminder(); toast(`Reminder set for ${e.target.value}`); };
+    nativeCmd("backupInfo");
+  }
   const bd = $("#bd"); let armed = false;
-  bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; return; } S = { entries:[], settings:{...DEFAULTS} }; save(); applyTheme(); renderSettings(); toast("All data erased"); };
+  bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; return; } S = { entries:[], settings:{...DEFAULTS} }; save(); applyTheme(); scheduleReminder(); renderSettings(); toast("All data erased"); };
 }
 
 async function download(name, text, type){
@@ -687,6 +764,7 @@ function toast(msg){ let t = $(".toast"); if (!t){ t = document.createElement("d
 load(); applyTheme();
 document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
 render();
+if (NATIVE){ syncHealth(false); scheduleReminder(); }
 if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
 </script>
 </body>
