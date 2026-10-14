@@ -14,6 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Use the newest Xcode on the runner
+        run: |
+          ls -d /Applications/Xcode*.app || true
+          X=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          if [ -n "$X" ]; then sudo xcode-select -s "$X/Contents/Developer"; fi
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -51,8 +59,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 1.3.1 (build ${{ github.run_number }})
+          name: Trendline 1.4 (build ${{ github.run_number }})
           body: |
-            Version 1.3.1: choose the date Apple Health import starts from (old readings ignored), 30/90-day and all-time figures skip long gaps. Includes 1.3: new native-feel design (system fonts, large titles, haptics, swipe to delete, bottom sheets, accent colours, new icon), Predictions with a weekly commitment, milestone celebrations, rearrangeable Summary cards, Face ID lock, share charts and reports as images, 7-day and full-screen chart, logbook columns.
+            Version 1.4: optional AI food log (write meals in Gulf Arabic or English; Gemini understands, Groq checks, USDA supplies values, the app does the maths; Claude optional, Apple Intelligence offline fallback), barcode scanning via Open Food Facts, Apple Watch activity, fitness and energy balance cards.
             Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
           files: ios/TrendlineScale.ipa

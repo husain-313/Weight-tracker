@@ -3,6 +3,11 @@ import WebKit
 import HealthKit
 import UserNotifications
 import LocalAuthentication
+import VisionKit
+import AVFoundation
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 /// Matches the page background in both themes so there is never a flash on launch or rotation.
 let appBackground = UIColor { traits in
@@ -265,6 +270,25 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             let mode = body["mode"] as? String ?? "auto"
             themeStyle = mode == "dark" ? .dark : mode == "light" ? .light : .unspecified
             applyTheme()
+        case "http":
+            performHTTP(body)
+        case "setKey":
+            if let name = body["name"] as? String, APIKeys.names.contains(name) {
+                APIKeys.set(name, (body["value"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+            sendKeyStatus()
+        case "keyStatus":
+            sendKeyStatus()
+        case "localAI":
+            runLocalAI(id: (body["id"] as? NSNumber)?.intValue ?? 0,
+                       instructions: body["instructions"] as? String ?? "",
+                       prompt: body["prompt"] as? String ?? "")
+        case "scanBarcode":
+            BarcodeScanner.shared.start(from: webView)
+        case "activityAuthorize":
+            activityAuthorize()
+        case "activityRead":
+            activityRead(days: (body["days"] as? NSNumber)?.intValue ?? 60)
         case "lockSet":
             let enable = body["enabled"] as? Bool ?? false
             let context = LAContext()
@@ -503,6 +527,183 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "weighed-\(day)", content: content, trigger: nil))
     }
 
+    // MARK: Network bridge (keys never leave the Keychain except to their own service)
+
+    private static let keyHosts: [String: String] = [
+        "gemini": "generativelanguage.googleapis.com",
+        "groq": "api.groq.com",
+        "usda": "api.nal.usda.gov",
+        "claude": "api.anthropic.com",
+    ]
+    private static let allowedHosts: Set<String> = Set(keyHosts.values).union(["world.openfoodfacts.org"])
+
+    private func performHTTP(_ body: [String: Any]) {
+        guard let id = (body["id"] as? NSNumber)?.intValue, var urlString = body["url"] as? String else { return }
+        var headers = body["headers"] as? [String: String] ?? [:]
+        guard let host = URL(string: urlString)?.host, Bridge.allowedHosts.contains(host) else {
+            send("http-result", ["id": id, "status": 0, "body": "", "error": "host-not-allowed"]); return
+        }
+        var missing: String?
+        func fill(_ text: String) -> String {
+            var out = text
+            for (name, keyHost) in Bridge.keyHosts where out.contains("{{\(name)}}") {
+                if keyHost == host, let key = APIKeys.get(name) { out = out.replacingOccurrences(of: "{{\(name)}}", with: key) }
+                else { missing = name }
+            }
+            return out
+        }
+        urlString = fill(urlString)
+        headers = headers.mapValues(fill)
+        if let missing = missing {
+            send("http-result", ["id": id, "status": 0, "body": "", "error": "missing-key:\(missing)"]); return
+        }
+        guard let url = URL(string: urlString) else { return }
+        var request = URLRequest(url: url, timeoutInterval: 30)
+        request.httpMethod = body["method"] as? String ?? "GET"
+        for (k, v) in headers { request.setValue(v, forHTTPHeaderField: k) }
+        if let text = body["body"] as? String { request.httpBody = Data(text.utf8) }
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            var payload: [String: Any] = [
+                "id": id,
+                "status": (response as? HTTPURLResponse)?.statusCode ?? 0,
+                "body": String(data: data ?? Data(), encoding: .utf8) ?? "",
+            ]
+            if let error = error { payload["error"] = error.localizedDescription }
+            self.send("http-result", payload)
+        }.resume()
+    }
+
+    private func sendKeyStatus() {
+        var status: [String: Any] = [:]
+        for name in APIKeys.names { status[name] = APIKeys.get(name) != nil }
+        status["local"] = localAIAvailable()
+        send("key-status", status)
+    }
+
+    // MARK: On-device AI (Apple Intelligence, iOS 26+)
+
+    private func localAIAvailable() -> Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            if case .available = SystemLanguageModel.default.availability { return true }
+        }
+        #endif
+        return false
+    }
+
+    private func runLocalAI(id: Int, instructions: String, prompt: String) {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *), localAIAvailable() {
+            Task {
+                do {
+                    let session = LanguageModelSession(instructions: instructions)
+                    let response = try await session.respond(to: prompt)
+                    self.send("local-ai", ["id": id, "ok": true, "text": response.content])
+                } catch {
+                    self.send("local-ai", ["id": id, "ok": false, "error": error.localizedDescription])
+                }
+            }
+            return
+        }
+        #endif
+        send("local-ai", ["id": id, "ok": false, "error": "unavailable"])
+    }
+
+    // MARK: Apple Watch activity
+
+    private var activityTypes: Set<HKObjectType> {
+        var set: Set<HKObjectType> = [HKObjectType.workoutType()]
+        for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .basalEnergyBurned, .restingHeartRate, .vo2Max] {
+            if let t = HKQuantityType.quantityType(forIdentifier: id) { set.insert(t) }
+        }
+        return set
+    }
+
+    private func activityAuthorize() {
+        guard HKHealthStore.isHealthDataAvailable() else { send("activity", ["error": "unavailable"]); return }
+        health.requestAuthorization(toShare: [], read: activityTypes) { _, _ in self.activityRead(days: 60) }
+    }
+
+    private func dailyStats(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int, sum: Bool,
+                            done: @escaping ([String: Double]) -> Void) {
+        guard let type = HKQuantityType.quantityType(forIdentifier: id) else { done([:]); return }
+        let cal = Calendar.current
+        let end = Date()
+        let anchor = cal.startOfDay(for: end)
+        guard let start = cal.date(byAdding: .day, value: -days, to: anchor) else { done([:]); return }
+        let query = HKStatisticsCollectionQuery(quantityType: type,
+                                                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end),
+                                                options: sum ? .cumulativeSum : .discreteAverage,
+                                                anchorDate: anchor, intervalComponents: DateComponents(day: 1))
+        query.initialResultsHandler = { _, results, _ in
+            var out: [String: Double] = [:]
+            results?.enumerateStatistics(from: start, to: end) { stats, _ in
+                let q = sum ? stats.sumQuantity() : stats.averageQuantity()
+                if let v = q?.doubleValue(for: unit) { out[Bridge.day(stats.startDate)] = (v * 10).rounded() / 10 }
+            }
+            done(out)
+        }
+        health.execute(query)
+    }
+
+    private func activityRead(days: Int) {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var result: [String: [String: Double]] = [:]
+        let bpm = HKUnit.count().unitDivided(by: .minute())
+        let specs: [(String, HKQuantityTypeIdentifier, HKUnit, Bool)] = [
+            ("steps", .stepCount, .count(), true),
+            ("active", .activeEnergyBurned, .kilocalorie(), true),
+            ("basal", .basalEnergyBurned, .kilocalorie(), true),
+            ("rhr", .restingHeartRate, bpm, false),
+            ("vo2", .vo2Max, HKUnit(from: "ml/kg*min"), false),
+        ]
+        for (key, id, unit, sum) in specs {
+            group.enter()
+            dailyStats(id, unit: unit, days: days, sum: sum) { values in
+                lock.lock(); result[key] = values; lock.unlock(); group.leave()
+            }
+        }
+        var workouts: [[String: Any]] = []
+        group.enter()
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+        let wq = HKSampleQuery(sampleType: HKObjectType.workoutType(),
+                               predicate: HKQuery.predicateForSamples(withStart: start, end: nil, options: []),
+                               limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+            for case let w as HKWorkout in samples ?? [] {
+                workouts.append(["date": Bridge.day(w.startDate), "min": (w.duration / 60).rounded(), "type": Bridge.workoutName(w.workoutActivityType)])
+            }
+            group.leave()
+        }
+        health.execute(wq)
+        group.notify(queue: .global()) {
+            var payload: [String: Any] = ["workouts": workouts]
+            for (k, v) in result { payload[k] = v }
+            self.send("activity", payload)
+        }
+    }
+
+    static func workoutName(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return "Running"
+        case .walking: return "Walking"
+        case .cycling: return "Cycling"
+        case .swimming: return "Swimming"
+        case .hiking: return "Hiking"
+        case .traditionalStrengthTraining, .functionalStrengthTraining: return "Strength"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .elliptical: return "Elliptical"
+        case .rowing: return "Rowing"
+        case .yoga: return "Yoga"
+        case .coreTraining: return "Core"
+        case .crossTraining: return "Cross training"
+        case .soccer: return "Football"
+        case .tennis: return "Tennis"
+        default: return "Workout"
+        }
+    }
+
     // MARK: Reminders
 
     /// Schedules one notification per day for the next 30 days, skipping today if already weighed.
@@ -637,4 +838,77 @@ struct WebView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
+}
+
+
+/// API keys live only in this iPhone's Keychain; the page never sees them.
+enum APIKeys {
+    static let names = ["gemini", "groq", "usda", "claude"]
+    private static let service = "trendline.apikeys"
+
+    static func set(_ name: String, _ value: String) {
+        let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                   kSecAttrService as String: service,
+                                   kSecAttrAccount as String: name]
+        SecItemDelete(base as CFDictionary)
+        guard !value.isEmpty else { return }
+        var add = base
+        add[kSecValueData as String] = Data(value.utf8)
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(add as CFDictionary, nil)
+    }
+
+    static func get(_ name: String) -> String? {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: service,
+                                    kSecAttrAccount as String: name,
+                                    kSecReturnData as String: true,
+                                    kSecMatchLimit as String: kSecMatchLimitOne]
+        var out: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data, let text = String(data: data, encoding: .utf8), !text.isEmpty else { return nil }
+        return text
+    }
+}
+
+/// Camera barcode scanner for packaged food (VisionKit).
+final class BarcodeScanner: NSObject, DataScannerViewControllerDelegate {
+    static let shared = BarcodeScanner()
+    private weak var navigation: UINavigationController?
+
+    func start(from webView: WKWebView?) {
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            DispatchQueue.main.async {
+                guard granted else { Bridge.shared.send("barcode", ["error": "camera-denied"]); return }
+                guard DataScannerViewController.isSupported, DataScannerViewController.isAvailable else {
+                    Bridge.shared.send("barcode", ["error": "unavailable"]); return
+                }
+                let scanner = DataScannerViewController(recognizedDataTypes: [.barcode()], qualityLevel: .balanced,
+                                                        recognizesMultipleItems: false, isHighFrameRateTrackingEnabled: false,
+                                                        isHighlightingEnabled: true)
+                scanner.delegate = self
+                scanner.title = "Scan a barcode"
+                let nav = UINavigationController(rootViewController: scanner)
+                scanner.navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { _ in
+                    scanner.stopScanning(); nav.dismiss(animated: true)
+                })
+                self.navigation = nav
+                guard var top = webView?.window?.rootViewController else { return }
+                while let presented = top.presentedViewController { top = presented }
+                top.present(nav, animated: true) { try? scanner.startScanning() }
+            }
+        }
+    }
+
+    func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
+        for item in addedItems {
+            if case .barcode(let barcode) = item, let code = barcode.payloadStringValue {
+                dataScanner.stopScanning()
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                navigation?.dismiss(animated: true)
+                Bridge.shared.send("barcode", ["code": code])
+                return
+            }
+        }
+    }
 }

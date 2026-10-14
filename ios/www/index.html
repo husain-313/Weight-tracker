@@ -234,6 +234,42 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:8px 12px calc
 .cel-card .btn{width:100%}
 @keyframes pop{from{transform:scale(.8);opacity:0}to{transform:none;opacity:1}}
 
+/* food */
+.daynav{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:14px;padding:6px}
+.daynav button{width:40px;height:36px;border-radius:10px;color:var(--accent);font-size:22px;font-weight:600;text-align:center}
+.daynav button:disabled{opacity:.3}
+.daynav b{font-size:16px}
+textarea.ta{width:100%;min-height:130px;background:var(--surface-2);border:0;border-radius:14px;padding:14px;font-size:17px;line-height:1.45;resize:vertical;outline:none}
+.meal-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid var(--line);width:100%}
+.meal-row:last-child{border-bottom:0}
+.meal-row .nm{flex:1;min-width:0}
+.meal-row .nm b{display:block;font-weight:500;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meal-row .nm small{color:var(--muted);font-size:12px}
+.meal-row .kc{font-weight:600;font-size:15px}
+.steps{display:flex;flex-direction:column;gap:10px;padding:6px 2px}
+.stp{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--muted)}
+.stp i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700;background:var(--surface-2);flex:none}
+.stp.run{color:var(--fg)} .stp.run i{border:2px solid var(--accent);border-right-color:transparent;background:none;animation:spin .8s linear infinite}
+.stp.done{color:var(--fg)} .stp.done i{background:var(--good-bg);color:var(--good)}
+.stp.skip i{background:var(--surface-2)} .stp.fail i{background:var(--bad-bg);color:var(--bad)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fi{display:grid;grid-template-columns:1fr 74px 52px 28px;gap:8px;align-items:center;padding:10px 0;border-bottom:.5px solid var(--line)}
+.fi:last-child{border-bottom:0}
+.fi .nm b{display:block;font-size:15px;font-weight:600}
+.fi .nm small{display:block;color:var(--muted);font-size:12px}
+.fi .warn{display:block;color:var(--warn);font-size:12px;margin-top:3px;line-height:1.3}
+.fi input{width:100%;background:var(--surface-2);border:0;border-radius:9px;padding:7px 6px;text-align:right;font-family:var(--font-num);font-size:15px}
+.fi .kc{text-align:right;font-weight:600;font-size:14px}
+.fi .rm{width:28px;height:28px;border-radius:50%;background:var(--surface-2);color:var(--muted);display:grid;place-items:center}
+.fi .rm svg{width:12px;height:12px}
+.minis{display:flex;gap:6px;margin-top:6px}
+.minis button{font-size:12px;font-weight:600;padding:4px 9px;border-radius:8px;background:var(--surface-2);color:var(--muted)}
+.minis button[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.issues{background:color-mix(in srgb,var(--warn) 14%,transparent);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4}
+.sel{-webkit-user-select:text;user-select:text}
+.bars{display:flex;align-items:flex-end;gap:4px;height:56px}
+.bars span{flex:1;background:var(--accent);border-radius:4px 4px 2px 2px;min-height:2px;opacity:.85}
+.bars span.today{opacity:.4}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 98px);background:var(--fg);color:var(--bg);padding:11px 16px;border-radius:14px;font-weight:600;font-size:15px;z-index:70;display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .toast button{color:var(--accent);font-weight:700}
 @media (prefers-reduced-motion:reduce){main.enter,.sheet,.cel-card,.scrim,.full,.celebrate{animation:none}.lrow,.bar>span,.tg::after{transition:none}}
@@ -248,6 +284,7 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:8px 12px calc
     <button role="tab" data-tab="summary" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>Summary</button>
     <button role="tab" data-tab="reports" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 15.5v-3M12 15.5V8.5M15.5 15.5v-5"/></svg>Reports</button>
     <button role="tab" data-tab="logbook" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4.5h11a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8.5h6"/></svg>Logbook</button>
+    <button role="tab" data-tab="food" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10"/><path d="M17 21V3c-2.2 1.2-3.5 3.6-3.5 7v3H17"/></svg>Food</button>
     <button role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>Settings</button>
   </div>
   <button class="fab" id="addBtn" aria-label="Add weigh-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -258,11 +295,12 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:8px 12px calc
 /* ---------- state ---------- */
 const KEY = "trendline-scale-v1";
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.store);
-const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", body:"Body composition", records:"Records", bmi:"Body mass index" };
+const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", energy:"Energy balance", activity:"Activity", fitness:"Fitness", body:"Body composition", records:"Records", bmi:"Body mass index" };
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", accent:"teal", step:null, chartRange:90, reportMode:"monthly",
   healthRead:false, healthWrite:false, healthSince:null, healthFrom:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
-  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false };
-let S = { entries:[], settings:{...DEFAULTS} };
+  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false,
+  models:{ gemini:"gemini-2.5-flash", groq:"llama-3.3-70b-versatile", claude:"claude-haiku-5-5" } };
+let S = { entries:[], settings:{...DEFAULTS}, food:{}, foodCache:{}, activity:null };
 
 function normalize(){
   const s = S.settings, known = Object.keys(CARD_NAMES);
@@ -271,11 +309,14 @@ function normalize(){
   s.cards = cards;
   s.cols = { trend:true, rate:true, ...(s.cols || {}) };
   if (!Array.isArray(s.healthIgnore)) s.healthIgnore = [];
+  s.models = { ...DEFAULTS.models, ...(s.models || {}) };
+  if (!S.food || typeof S.food !== "object") S.food = {};
+  if (!S.foodCache || typeof S.foodCache !== "object") S.foodCache = {};
 }
 function load(){
   try{
     const raw = (NATIVE && typeof window.__NATIVE_STATE__ === "string") ? window.__NATIVE_STATE__ : localStorage.getItem(KEY);
-    if (raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries) ? d.entries : []; S.settings = {...DEFAULTS, ...(d.settings || {})}; }
+    if (raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries) ? d.entries : []; S.settings = {...DEFAULTS, ...(d.settings || {})}; S.food = d.food || {}; S.foodCache = d.foodCache || {}; S.activity = d.activity || null; }
   }catch(e){}
   normalize(); sortEntries();
 }
@@ -419,8 +460,17 @@ window.__native = function(event, p){
   else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab === "settings") render(); } else syncHealth(true); }
   else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings."); if (tab === "settings") render(); }
   else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
-  else if (event === "foreground"){ syncHealth(false); scheduleReminder(); if (tab !== "settings") render(); }
+  else if (event === "foreground"){ syncHealth(false); syncActivity(false); scheduleReminder(); if (tab !== "settings") render(); }
   else if (event === "toast") toast(p.text || "");
+  else if (event === "http-result"){ const w = httpWait[p.id]; if (w){ delete httpWait[p.id]; p.error ? w.reject(new Error(p.error)) : w.resolve(p); } }
+  else if (event === "local-ai"){ const w = localWait[p.id]; if (w){ delete localWait[p.id]; p.ok ? w.resolve(p.text || "") : w.reject(new Error(p.error || "unavailable")); } }
+  else if (event === "key-status"){ const changed = JSON.stringify(p) !== JSON.stringify(keyStatus); keyStatus = p; if (changed && tab === "settings") render(); }
+  else if (event === "activity"){
+    if (p.error){ toast("Apple Health is not available on this device."); return; }
+    S.activity = { updated: Date.now(), steps: p.steps || {}, active: p.active || {}, basal: p.basal || {}, rhr: p.rhr || {}, vo2: p.vo2 || {}, workouts: p.workouts || [] };
+    save(); if (tab === "summary" || tab === "food") render();
+  }
+  else if (event === "barcode"){ if (p.code) onBarcode(p.code); else if (p.error === "camera-denied") toast("Allow camera access for Trendline in iOS Settings."); else if (p.error) toast("Barcode scanning isn't available on this device."); }
   else if (event === "lock-result"){
     if (p.ok){ S.settings.lock = !!p.enabled; save(); toast(p.enabled ? "Face ID lock is on" : "Face ID lock is off"); haptic("success"); }
     else toast(p.reason === "unavailable" ? "Set up Face ID or a passcode on this iPhone first." : "Face ID was not confirmed.");
@@ -430,7 +480,7 @@ window.__native = function(event, p){
     try{
       const d = JSON.parse(p.json);
       if (d && Array.isArray(d.entries) && JSON.stringify(d) !== JSON.stringify(S)){
-        S.entries = d.entries; S.settings = {...DEFAULTS, ...(d.settings || {})}; normalize(); sortEntries();
+        S.entries = d.entries; S.settings = {...DEFAULTS, ...(d.settings || {})}; S.food = d.food || S.food; S.foodCache = d.foodCache || S.foodCache; S.activity = d.activity || S.activity; normalize(); sortEntries();
         if (!document.querySelector(".scrim")) render();
         checkCelebrate(false);
       }
@@ -532,7 +582,7 @@ function showCelebration(isGoal, value){
 }
 
 /* ---------- tabs, top bar ---------- */
-const TITLES = { summary:"Summary", reports:"Reports", logbook:"Logbook", settings:"Settings" };
+const TITLES = { summary:"Summary", reports:"Reports", logbook:"Logbook", food:"Food", settings:"Settings" };
 let tab = "summary";
 try{ const t = localStorage.getItem(KEY + ":tab"); if (TITLES[t]) tab = t; }catch(e){}
 function setTab(t){
@@ -544,7 +594,7 @@ function setTab(t){
   render(true);
 }
 document.querySelectorAll(".tabbar button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
-$("#addBtn").addEventListener("click", () => { haptic("light"); openEntry(); });
+$("#addBtn").addEventListener("click", () => { haptic("light"); if (tab === "food") openFoodLog(); else openEntry(); });
 const topbar = $("#topbar");
 window.addEventListener("scroll", () => topbar.classList.toggle("scrolled", window.scrollY > 34), { passive:true });
 
@@ -555,8 +605,9 @@ function render(animate){
   if (tab === "summary" && S.entries.length){ acts.innerHTML = `<button class="icon-btn" id="tbLayout" aria-label="Arrange cards">${ICON.layout}</button>`; $("#tbLayout").onclick = openLayout; }
   if (tab === "logbook" && S.entries.length){ acts.innerHTML = `<button class="icon-btn" id="tbCols" aria-label="Choose columns">${ICON.cols}</button>`; $("#tbCols").onclick = openColumns; }
   const count = S.entries.length ? `<small>${S.entries.length} weigh-in${S.entries.length > 1 ? "s" : ""}</small>` : "";
-  const head = `<h1 class="large">${TITLES[tab]}${tab !== "settings" ? count : ""}</h1>`;
+  const head = `<h1 class="large">${TITLES[tab]}${tab !== "settings" && tab !== "food" ? count : ""}</h1>`;
   if (tab === "settings") renderSettings(head);
+  else if (tab === "food") renderFood(head);
   else if (!S.entries.length) renderEmpty(head);
   else if (tab === "summary") renderSummary(head);
   else if (tab === "reports") renderReports(head);
@@ -677,6 +728,69 @@ const CARDS = {
       <p class="note" style="font-size:13px">From your smart scale through Apple Health. Daily readings swing with hydration, so follow the trend.</p>
     </section>`;
   },
+  energy(rows){
+    const s = slope(rows, 28), trendKcal = s == null ? null : s*7700;
+    const days = lastDays(7), A = S.activity;
+    const burns = A ? days.map(d => (A.basal[d] || 0) > 0 ? (A.active[d] || 0) + A.basal[d] : null).filter(v => v != null) : [];
+    const burn = burns.length ? avg(burns) : null;
+    const logged = days.filter(d => (S.food[d] || []).length);
+    const intake = logged.length ? avg(logged.map(d => dayTotals(S.food[d]).kcal)) : null;
+    const est = burn != null && trendKcal != null ? burn + trendKcal : null;
+    const k = v => Math.round(v).toLocaleString("en-US");
+    const line = (label, value, sub) => `<div class="row"><span class="k">${label}${sub ? `<small style="display:block;font-size:12px">${sub}</small>` : ""}</span><span class="v num">${value}</span></div>`;
+    let html = `<section class="card"><div class="card-h"><h2>Energy balance</h2></div><div class="kv">`;
+    html += line("Your trend says", trendKcal == null ? "Needs a week" : `${trendKcal < 0 ? "Deficit" : "Surplus"} ~${k(Math.abs(trendKcal))} kcal/day`, "From your weight change over 4 weeks");
+    html += line("Burned", burn == null ? (S.settings.actRead ? "Waiting for data" : "Connect Apple Watch") : `~${k(burn)} kcal/day`, burn == null ? "" : `Apple Watch, last ${burns.length} days`);
+    if (est != null) html += line("You likely eat", `~${k(est)} kcal/day`, "Burned plus your trend");
+    if (intake != null){
+      html += line("You logged", `~${k(intake)} kcal/day`, `Average of ${logged.length} logged day${logged.length > 1 ? "s" : ""}`);
+      if (burn != null && s != null){
+        const exp = (intake - burn)*7/7700, act = s*7;
+        html += line("Logs predict", `${arrow(exp)} ${Math.abs(toU(exp)).toFixed(2)} ${U()}/wk`, "From what you logged and burned");
+        html += line("Scale shows", `${arrow(act)} ${Math.abs(toU(act)).toFixed(2)} ${U()}/wk`, "Your real trend");
+      }
+    }
+    html += `</div><p class="note" style="font-size:13px">Estimates. Watch calories and food logs are approximate, so compare weekly averages rather than single days.</p></section>`;
+    return html;
+  },
+  activity(){
+    if (!S.settings.actRead) return NATIVE ? `<section class="card"><div class="card-h"><h2>Activity</h2></div><p class="note">See steps, energy burned and workouts from your Apple Watch next to your weight.</p><button class="btn" id="actOn">Connect Apple Watch</button></section>` : "";
+    const A = S.activity; if (!A) return `<section class="card"><div class="card-h"><h2>Activity</h2></div><p class="note">Loading from Apple Health…</p></section>`;
+    const wk = lastDays(7), prev = lastDays(7, 7);
+    const avgOf = (map, ds) => { const v = ds.map(d => map[d]).filter(x => x > 0); return v.length ? avg(v) : null; };
+    const st = avgOf(A.steps, wk), stP = avgOf(A.steps, prev), ac = avgOf(A.active, wk), acP = avgOf(A.active, prev);
+    const wo = (A.workouts || []).filter(w => wk.includes(w.date)), woMin = wo.reduce((s,w) => s + (w.min || 0), 0);
+    const delta = (a, b, unit) => a == null || b == null ? "" : `<div class="s"><b style="color:var(--${a >= b ? "good" : "bad"})">${a >= b ? "↑" : "↓"} ${Math.round(Math.abs(a - b)).toLocaleString("en-US")}${unit}</b> vs last week</div>`;
+    const bars = lastDays(13, 0).concat([todayStr()]);
+    const mx = Math.max(1, ...bars.map(d => A.steps[d] || 0));
+    const types = [...new Set(wo.map(w => w.type))].slice(0, 3).join(", ");
+    return `<section class="card"><div class="card-h"><h2>Activity</h2><span class="lbl">Last 7 days</span></div>
+      <div class="rgrid">
+        <div class="rbox"><div class="k">Steps a day</div><div class="v num">${st == null ? "—" : Math.round(st).toLocaleString("en-US")}</div>${delta(st, stP, "")}</div>
+        <div class="rbox"><div class="k">Active energy</div><div class="v num">${ac == null ? "—" : Math.round(ac).toLocaleString("en-US")} <small style="font-size:13px;color:var(--muted)">kcal</small></div>${delta(ac, acP, " kcal")}</div>
+      </div>
+      <div class="row"><span class="k">Workouts</span><span class="v">${wo.length ? `${wo.length} · ${Math.round(woMin)} min${types ? ` <small style="color:var(--muted);font-weight:500">${esc(types)}</small>` : ""}` : "None this week"}</span></div>
+      <div><div class="bars">${bars.map(d => `<span class="${d === todayStr() ? "today" : ""}" style="height:${Math.round((A.steps[d] || 0)/mx*100)}%"></span>`).join("")}</div>
+      <div class="row" style="font-size:11px;color:var(--muted);margin-top:4px"><span>Steps, 14 days</span><span>Today</span></div></div>
+    </section>`;
+  },
+  fitness(){
+    if (!S.settings.actRead || !S.activity) return "";
+    const A = S.activity;
+    const avgOf = (map, ds) => { const v = ds.map(d => map[d]).filter(x => x > 0); return v.length ? avg(v) : null; };
+    const r = avgOf(A.rhr, lastDays(7, 0)), r0 = avgOf(A.rhr, lastDays(7, 30));
+    const vDays = Object.keys(A.vo2 || {}).sort(), v = vDays.length ? A.vo2[vDays[vDays.length-1]] : null;
+    const vOld = vDays.filter(d => d <= fromDnum(dnum(todayStr()) - 60)); const v0 = vOld.length ? A.vo2[vOld[vOld.length-1]] : (vDays.length > 1 ? A.vo2[vDays[0]] : null);
+    if (r == null && v == null) return "";
+    const ch = (a, b, lowerGood, unit, dp) => a == null || b == null || Math.abs(a - b) < Math.pow(10, -dp) ? `<div class="s">Not enough history yet</div>` : `<div class="s"><b style="color:var(--${(a < b) === lowerGood ? "good" : "bad"})">${a < b ? "↓" : "↑"} ${Math.abs(a - b).toFixed(dp)}${unit}</b> vs ${lowerGood ? "a month" : "2 months"} ago</div>`;
+    return `<section class="card"><div class="card-h"><h2>Fitness</h2></div>
+      <div class="rgrid">
+        <div class="rbox"><div class="k">Resting heart rate</div><div class="v num">${r == null ? "—" : Math.round(r)} <small style="font-size:13px;color:var(--muted)">bpm</small></div>${ch(r, r0, true, "", 0)}</div>
+        <div class="rbox"><div class="k">VO₂ max</div><div class="v num">${v == null ? "—" : v.toFixed(1)}</div>${ch(v, v0, false, "", 1)}</div>
+      </div>
+      <p class="note" style="font-size:13px">A falling resting heart rate and a rising VO₂ max both mean your fitness is improving.</p>
+    </section>`;
+  },
   records(rows){
     const hi = rows.reduce((m,r) => r.kg > m.kg ? r : m), lo = rows.reduce((m,r) => r.kg < m.kg ? r : m);
     const line = (k, r) => `<div class="row"><span class="k">${k}</span><span class="v"><span class="num">${fw(r.kg)}</span> <small style="color:var(--muted);font-weight:500">${fmtDate(r.date)}</small></span></div>`;
@@ -706,6 +820,7 @@ function bindSummary(rows){
   on("prSet", openCommit); on("prSet2", openCommit);
   on("glSet", openGoalSheet); on("glSet2", openGoalSheet);
   on("bmiSet", () => setTab("settings"));
+  on("actOn", enableActivity);
   if ($("#chart")) mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange);
   drawFatSpark();
 }
@@ -1085,6 +1200,347 @@ function openColumns(){
   sh.querySelector("#cr").onchange = e => { S.settings.cols.rate = e.target.checked; save(); haptic("light"); render(); };
 }
 
+/* ---------- activity ---------- */
+const avg = a => a.reduce((s,v) => s + v, 0)/a.length;
+// `n` calendar days ending the day before today, shifted back by `skip` days
+function lastDays(n, skip){ const t = dnum(todayStr()) - 1 - (skip || 0); return Array.from({length: n}, (_, i) => fromDnum(t - (n - 1 - i))); }
+function enableActivity(){ S.settings.actRead = true; save(); nativeCmd("activityAuthorize"); haptic("light"); toast("Reading activity from Apple Health…"); render(); }
+function syncActivity(force){
+  if (!NATIVE || !S.settings.actRead) return;
+  if (!force && S.activity && Date.now() - S.activity.updated < 30*60*1000) return;
+  nativeCmd("activityRead", { days: 60 });
+}
+
+/* ---------- AI + network plumbing ---------- */
+let keyStatus = {}, httpSeq = 0, localSeq = 0;
+const httpWait = {}, localWait = {};
+function http(req){
+  return new Promise((resolve, reject) => {
+    if (!NATIVE) return reject(new Error("This works in the iPhone app"));
+    const id = ++httpSeq; httpWait[id] = { resolve, reject };
+    nativeCmd("http", { id, method: req.method || "GET", url: req.url, headers: req.headers || {}, body: req.body });
+    setTimeout(() => { if (httpWait[id]){ delete httpWait[id]; reject(new Error("timed out")); } }, 35000);
+  });
+}
+function localAI(instructions, prompt){
+  return new Promise((resolve, reject) => {
+    if (!NATIVE) return reject(new Error("unavailable"));
+    const id = ++localSeq; localWait[id] = { resolve, reject };
+    nativeCmd("localAI", { id, instructions, prompt });
+    setTimeout(() => { if (localWait[id]){ delete localWait[id]; reject(new Error("timed out")); } }, 60000);
+  });
+}
+function apiErr(name, r){ let m = ""; try{ const d = JSON.parse(r.body); m = (d.error && (d.error.message || d.error.type)) || ""; }catch(e){} return `${name} error ${r.status}${m ? ": " + String(m).slice(0, 140) : ""}`; }
+function parseJSON(t){
+  if (!t) return null; t = String(t).replace(/```(?:json)?/g, "");
+  const a = t.indexOf("{"), b = t.lastIndexOf("}"); if (a < 0 || b <= a) return null;
+  try{ return JSON.parse(t.slice(a, b + 1)); }catch(e){ return null; }
+}
+async function callGemini(sys, user){
+  const r = await http({ method:"POST", url:`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.settings.models.gemini)}:generateContent`,
+    headers:{ "Content-Type":"application/json", "x-goog-api-key":"{{gemini}}" },
+    body: JSON.stringify({ systemInstruction:{ parts:[{ text: sys }] }, contents:[{ role:"user", parts:[{ text: user }] }], generationConfig:{ responseMimeType:"application/json", temperature:0.1 } }) });
+  if (r.status !== 200) throw new Error(apiErr("Gemini", r));
+  const d = JSON.parse(r.body); return ((d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts) || []).map(x => x.text || "").join("");
+}
+async function callGroq(sys, user){
+  const r = await http({ method:"POST", url:"https://api.groq.com/openai/v1/chat/completions",
+    headers:{ "Content-Type":"application/json", "Authorization":"Bearer {{groq}}" },
+    body: JSON.stringify({ model: S.settings.models.groq, temperature: 0.1, response_format:{ type:"json_object" }, messages:[{ role:"system", content: sys }, { role:"user", content: user }] }) });
+  if (r.status !== 200) throw new Error(apiErr("Groq", r));
+  const d = JSON.parse(r.body); return d.choices && d.choices[0] && d.choices[0].message ? d.choices[0].message.content : "";
+}
+async function callClaude(sys, user){
+  const r = await http({ method:"POST", url:"https://api.anthropic.com/v1/messages",
+    headers:{ "content-type":"application/json", "x-api-key":"{{claude}}", "anthropic-version":"2023-06-01" },
+    body: JSON.stringify({ model: S.settings.models.claude, max_tokens: 2048, system: sys, messages:[{ role:"user", content: user }] }) });
+  if (r.status !== 200) throw new Error(apiErr("Claude", r));
+  const d = JSON.parse(r.body); return (d.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+}
+
+/* ---------- food log ---------- */
+const MEALS = [["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snack","Snacks"]];
+const MEAL_AR = { breakfast:"فطور", lunch:"غداء", dinner:"عشاء", snack:"سناك" };
+// Common foods, values per 100 g (USDA SR Legacy / Foundation). Checked in order, so specific entries come first.
+const FOOD_DB = [
+  [/egg ?whites?|whites? of eggs?|albumen/, "Egg white", 52, 10.9, 0.7, 0.2],
+  [/\beggs?\b/, "Whole egg", 143, 12.6, 0.7, 9.5],
+  [/brown rice/, "Brown rice, cooked", 123, 2.7, 25.6, 1.0],
+  [/rice.*\b(raw|uncooked|dry)\b|\b(raw|uncooked|dry)\b.*rice/, "White rice, raw", 365, 7.1, 80, 0.7],
+  [/\brice\b/, "White rice, cooked", 130, 2.7, 28.2, 0.3],
+  [/chicken breast.*\b(raw|uncooked)\b/, "Chicken breast, raw", 120, 22.5, 0, 2.6],
+  [/chicken breast/, "Chicken breast, cooked", 165, 31, 0, 3.6],
+  [/salmon.*\braw\b|\braw\b.*salmon/, "Salmon, raw", 208, 20.4, 0, 13.4],
+  [/salmon/, "Salmon, cooked", 206, 22.1, 0, 12.4],
+  [/tuna/, "Tuna, canned in water", 116, 25.5, 0, 0.8],
+  [/rolled oats|\boats?\b|oatmeal/, "Oats, dry", 389, 16.9, 66.3, 6.9],
+  [/sweet potato/, "Sweet potato, baked", 90, 2.0, 20.7, 0.2],
+  [/\bpotato/, "Potato, boiled", 87, 1.9, 20.1, 0.1],
+  [/pasta|spaghetti|macaroni/, "Pasta, cooked", 158, 5.8, 30.9, 0.9],
+  [/\bapples?\b/, "Apple", 52, 0.3, 13.8, 0.2],
+  [/\boranges?\b/, "Orange", 47, 0.9, 11.8, 0.1],
+  [/\bbananas?\b/, "Banana", 89, 1.1, 22.8, 0.3],
+  [/\bdates?\b/, "Dates", 282, 2.5, 75, 0.4],
+  [/cucumber/, "Cucumber", 15, 0.7, 3.6, 0.1],
+  [/tomato/, "Tomato", 18, 0.9, 3.9, 0.2],
+  [/salad|lettuce|leafy greens/, "Green salad, no dressing", 17, 1.2, 3.3, 0.2],
+  [/pita|arabic bread|khubz|flatbread/, "Arabic bread", 275, 9.1, 55.7, 1.2],
+  [/greek yog/, "Greek yogurt, plain, nonfat", 59, 10.2, 3.6, 0.4],
+  [/laban|buttermilk/, "Laban (buttermilk)", 40, 3.3, 4.8, 0.9],
+  [/skim(med)? milk|fat[- ]free milk/, "Milk, skim", 34, 3.4, 5.0, 0.1],
+  [/\bmilk\b/, "Milk, whole", 61, 3.2, 4.8, 3.3],
+  [/olive oil/, "Olive oil", 884, 0, 0, 100],
+  [/hummus/, "Hummus", 166, 7.9, 14.3, 9.6],
+  [/avocado/, "Avocado", 160, 2.0, 8.5, 14.7],
+  [/almonds?/, "Almonds", 579, 21.2, 21.6, 49.9],
+  [/peanut butter/, "Peanut butter", 588, 25.1, 20, 50.4]
+];
+function dayTotals(items){
+  const t = { kcal:0, p:0, c:0, f:0 };
+  for (const it of items || []) if (it.per100){ const k = it.grams/100; t.kcal += it.per100.kcal*k; t.p += it.per100.p*k; t.c += it.per100.c*k; t.f += it.per100.f*k; }
+  return t;
+}
+const itemKcal = it => it.per100 ? it.grams*it.per100.kcal/100 : null;
+const PARSE_SYS = `You turn a person's food diary into structured data. They write in Gulf Arabic dialect (Bahraini/Khaleeji), standard Arabic, English, or a mix.
+Return ONLY JSON in this shape:
+{"translation":"faithful literal English translation of the whole text",
+ "items":[{"meal":"breakfast|lunch|dinner|snack","name":"specific English food name for a nutrition database search, including cooking state, e.g. 'white rice, cooked' or 'chicken breast, grilled'","name_ar":"short Arabic name of the item","qty":number or null,"unit":"g|ml|piece|cup|tbsp|tsp|plate|bowl|slice|handful","grams":number,"state":"cooked|raw|n/a","assumed":true or false,"note":"short English note on any assumption, or empty","est":{"kcal":number,"p":number,"c":number,"f":number}}]}
+Rules:
+- Meals: تريقت/ريوق/فطور/breakfast = breakfast; تغديت/غدا/غداء = lunch; تعشيت/عشا/عشاء = dinner; سناك/تصبيرة/snack = snack. If no meal is named, choose from context.
+- بيضة/بيض = egg (large, 50 g each). بدون صفار or بياض = egg white (33 g each). "X بيضات وحدة بدون صفار" means X-1 whole eggs and 1 egg white. "X بيضات وحدة مع الصفار / بصفار" means 1 whole egg and X-1 egg whites. List whole eggs and egg whites as separate items.
+- بدون دهن / بدون زيت means no added fat or oil.
+- Use the grams the person gives. Otherwise estimate a typical portion, set assumed=true and explain in note. Typical: apple 180 g, orange 130 g, banana 120 g, date 8 g, slice of bread 30 g, Arabic bread 60 g, side salad 150 g, plate of rice 200 g cooked.
+- Rice, pasta and meat weights without a stated state: assume cooked and set assumed=true with note "Assumed cooked". Oats without a state: assume dry.
+- est = your best estimate of nutrition PER 100 g (kcal, protein g, carbs g, fat g). It is only a fallback.
+- One item per distinct food. Do not add totals. Do not invent foods that were not mentioned.`;
+const REVIEW_SYS = `You are a careful nutrition data reviewer. You get a person's original food diary (often Gulf Arabic), its English translation, and a parsed item list. Check that:
+1) every food in the diary appears in the list and nothing was invented;
+2) quantities follow the text exactly, especially egg logic: "X eggs, one without the yolk" = X-1 whole eggs + 1 egg white; "X eggs, one with the yolk" = 1 whole egg + X-1 egg whites;
+3) grams are plausible for the quantities;
+4) meals and cooking states are sensible.
+Return ONLY JSON: {"ok":true or false,"issues":["short English sentence for each problem you fixed"],"items":[the full corrected list with the same fields as the input]}.
+If everything is correct return ok=true, issues=[] and the same items.`;
+function cleanItems(arr){
+  return (Array.isArray(arr) ? arr : []).filter(x => x && x.name).map(x => ({
+    meal: ["breakfast","lunch","dinner","snack"].includes(x.meal) ? x.meal : "snack",
+    name: String(x.name).slice(0, 80), nameAr: String(x.name_ar || x.nameAr || "").slice(0, 60),
+    qty: x.qty == null || isNaN(+x.qty) ? null : +x.qty, unit: String(x.unit || ""),
+    grams: Math.round(Math.max(0, Math.min(5000, +x.grams || 0))), state: ["cooked","raw"].includes(x.state) ? x.state : "n/a",
+    assumed: !!x.assumed, note: String(x.note || "").slice(0, 160), est: x.est && typeof x.est === "object" ? x.est : null
+  })).filter(x => x.grams > 0);
+}
+async function usdaSearch(q){
+  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key={{usda}}&pageSize=5&dataType=${encodeURIComponent("Foundation,SR Legacy")}&query=${encodeURIComponent(q)}`;
+  const r = await http({ url });
+  if (r.status !== 200) throw new Error(apiErr("USDA", r));
+  const f = (JSON.parse(r.body).foods || [])[0]; if (!f) return null;
+  const get = (nums, re) => { const x = (f.foodNutrients || []).find(n => nums.includes(String(n.nutrientNumber)) || (re && re.test(n.nutrientName || "") && /kcal/i.test(n.unitName || ""))); return x ? +x.value : null; };
+  const kcal = get(["208","957","958"], /^Energy/); if (kcal == null) return null;
+  return { name: f.description, per100: { kcal, p: get(["203"]) || 0, c: get(["205"]) || 0, f: get(["204"]) || 0 } };
+}
+async function lookupItem(it){
+  const n = it.name.toLowerCase().trim(); it.flag = "";
+  const hit = FOOD_DB.find(d => d[0].test(n));
+  if (hit){ it.per100 = { kcal: hit[2], p: hit[3], c: hit[4], f: hit[5] }; it.src = "Built-in"; it.match = hit[1]; return; }
+  if (S.foodCache[n]){ Object.assign(it, S.foodCache[n]); return; }
+  if (keyStatus.usda){ try{ const r = await usdaSearch(n); if (r){ it.per100 = r.per100; it.src = "USDA"; it.match = r.name; S.foodCache[n] = { per100: r.per100, src: "USDA", match: r.name }; return; } }catch(e){} }
+  if (it.est && +it.est.kcal > 0){ it.per100 = { kcal: +it.est.kcal, p: +it.est.p || 0, c: +it.est.c || 0, f: +it.est.f || 0 }; it.src = "AI estimate"; it.flag = "Values estimated by AI"; return; }
+  it.per100 = null; it.src = null; it.flag = "No nutrition data found. Edit or remove this item.";
+}
+// The pipeline: understand (Claude or Gemini, Apple offline) → review (Groq) → values (built-in, USDA) → totals (here).
+async function analyzeFood(text, step){
+  const parsers = [];
+  if (keyStatus.claude) parsers.push(["Claude", callClaude]);
+  if (keyStatus.gemini) parsers.push(["Gemini", callGemini]);
+  if (keyStatus.local) parsers.push(["Apple Intelligence", (a, b) => localAI(a, b)]);
+  if (!parsers.length) throw new Error("Add a free Gemini key in Settings › Food & AI to analyse meals.");
+  let parsed = null, by = null; const errs = [];
+  for (const [name, fn] of parsers){
+    step(0, "run", `Understanding your meals · ${name}`);
+    try{ const j = parseJSON(await fn(PARSE_SYS, `Food diary:\n${text}`)); const items = cleanItems(j && j.items); if (items.length){ parsed = { translation: j.translation || "", items }; by = name; break; } errs.push(`${name}: no foods found`); }
+    catch(e){ errs.push(e.message); }
+  }
+  if (!parsed){ step(0, "fail", "Couldn't understand the meals"); throw new Error(errs.join(" · ")); }
+  step(0, "done", `Understood · ${by}`);
+  const reviewers = [];
+  if (keyStatus.groq) reviewers.push(["Groq", callGroq]);
+  if (keyStatus.gemini && by !== "Gemini") reviewers.push(["Gemini", callGemini]);
+  let items = parsed.items, issues = [], rby = null;
+  if (!reviewers.length) step(1, "skip", "Checking · add a Groq key for a second opinion");
+  for (const [name, fn] of reviewers){
+    step(1, "run", `Checking the result · ${name}`);
+    try{
+      const j = parseJSON(await fn(REVIEW_SYS, JSON.stringify({ diary: text, translation: parsed.translation, items: parsed.items })));
+      const fixed = cleanItems(j && j.items);
+      if (fixed.length){ items = fixed; issues = (j.issues || []).map(String).slice(0, 6); rby = name; break; }
+    }catch(e){ errs.push(e.message); }
+  }
+  if (reviewers.length) step(1, rby ? "done" : "fail", rby ? (issues.length ? `Checked · ${rby} fixed ${issues.length} thing${issues.length > 1 ? "s" : ""}` : `Checked · ${rby} found no problems`) : "Check skipped · service didn't answer");
+  step(2, "run", "Looking up nutrition values");
+  for (const it of items) await lookupItem(it);
+  save();
+  const srcs = [...new Set(items.map(i => i.src).filter(Boolean))];
+  step(2, "done", `Values · ${srcs.join(", ") || "none found"}`);
+  step(3, "done", "Totals calculated");
+  return { items, translation: parsed.translation, issues, by, rby };
+}
+
+let foodDay = todayStr();
+function dayLabel(d){ const t = todayStr(); if (d === t) return "Today"; if (d === fromDnum(dnum(t) - 1)) return "Yesterday"; const p = parts(d); return `${WD[p.wd]} ${p.d} ${MON[p.m-1]}`; }
+function renderFood(head){
+  const items = S.food[foodDay] || [], t = dayTotals(items);
+  const A = S.activity, burn = A && (A.basal[foodDay] || 0) > 0 ? (A.active[foodDay] || 0) + A.basal[foodDay] : null;
+  const k = v => Math.round(v).toLocaleString("en-US");
+  let html = head + `<div class="daynav"><button id="fdPrev" aria-label="Previous day">‹</button><b>${dayLabel(foodDay)}</b><button id="fdNext" aria-label="Next day" ${foodDay >= todayStr() ? "disabled" : ""}>›</button></div>`;
+  html += `<section class="card"><div class="hero"><div><div class="lbl">Eaten</div><span class="big num">${k(t.kcal)}</span><span class="unit">kcal</span></div>
+      ${burn != null && items.length ? `<span class="pill ${t.kcal < burn ? "good" : "bad"} num">${t.kcal < burn ? "−" : "+"}${k(Math.abs(burn - t.kcal))} kcal</span>` : ""}</div>
+    ${burn != null ? `<div class="lbl">Burned <b class="num" style="color:var(--fg)">${k(burn)}</b> kcal${foodDay === todayStr() ? " so far today" : ""} · Apple Watch</div>` : ""}
+    <div class="tiles" style="grid-template-columns:repeat(3,1fr)">
+      <div class="tile"><div class="v num">${Math.round(t.p)} g</div><div class="k">Protein</div></div>
+      <div class="tile"><div class="v num">${Math.round(t.c)} g</div><div class="k">Carbs</div></div>
+      <div class="tile"><div class="v num">${Math.round(t.f)} g</div><div class="k">Fat</div></div></div></section>`;
+  html += `<div class="btns"><button class="btn primary" id="fLog">Log food</button>${NATIVE ? `<button class="btn" id="fScan">Scan barcode</button>` : ""}</div>`;
+  if (!items.length){
+    html += `<section class="card"><p class="note">Optional: write what you ate the way you talk, and Trendline works out the nutrition. For example:</p>
+      <p class="note sel" dir="rtl" style="color:var(--fg);background:var(--surface-2);border-radius:12px;padding:12px">تريقت 6 بيضات وحده بدون صفار ورز ابيض بدون دهن 150 جرام، تغديت سالمون 160 جرام مع سلطة</p></section>`;
+  }
+  for (const [m, label] of MEALS){
+    const list = items.map((it, i) => ({ it, i })).filter(x => x.it.meal === m); if (!list.length) continue;
+    const mt = dayTotals(list.map(x => x.it));
+    html += `<section class="card" style="gap:4px"><div class="card-h"><h2>${label}</h2><span class="lbl num">${k(mt.kcal)} kcal</span></div>
+      ${list.map(({ it, i }) => `<button class="meal-row" data-fi="${i}"><span class="nm"><b>${esc(it.nameAr || it.name)}</b><small>${esc(it.nameAr ? it.name : "")}${it.nameAr ? " · " : ""}${it.grams} g${it.src ? " · " + esc(it.src) : ""}</small></span><span class="kc num">${itemKcal(it) == null ? "—" : k(itemKcal(it))}</span></button>`).join("")}
+    </section>`;
+  }
+  view.innerHTML = html;
+  $("#fdPrev").onclick = () => { foodDay = fromDnum(dnum(foodDay) - 1); haptic("selection"); render(); };
+  $("#fdNext").onclick = () => { if (foodDay < todayStr()){ foodDay = fromDnum(dnum(foodDay) + 1); haptic("selection"); render(); } };
+  $("#fLog").onclick = openFoodLog;
+  const sc = $("#fScan"); if (sc) sc.onclick = () => { haptic("light"); nativeCmd("scanBarcode"); };
+  view.querySelectorAll("[data-fi]").forEach(b => b.onclick = () => openFoodItem(+b.dataset.fi));
+}
+function openFoodLog(){
+  if (tab !== "food"){ setTab("food"); }
+  const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>Log food</h2><span style="width:52px"></span></div>
+    <div class="lbl">${dayLabel(foodDay)}</div>
+    <textarea class="ta" id="ft" dir="auto" placeholder="تريقت 6 بيضات وحده بدون صفار ورز ابيض 150 جرام…"></textarea>
+    <p class="note" style="font-size:13px">Write the way you talk, in Arabic or English. Add grams when you know them, and say if rice or meat was weighed raw.</p>
+    <p class="err" id="fe" hidden></p>
+    <button class="btn primary" id="fa">Analyse</button>`);
+  const ta = sh.querySelector("#ft"); setTimeout(() => ta.focus(), 350);
+  sh.querySelector("#fa").onclick = async () => {
+    const text = ta.value.trim(); if (!text){ ta.focus(); return; }
+    haptic("light");
+    const labels = ["Understanding your meals", "Checking the result", "Looking up nutrition values", "Calculating totals"];
+    sh.innerHTML = `<div class="grab"></div><div class="sheet-h"><span style="width:52px"></span><h2>Analysing</h2><span style="width:52px"></span></div>
+      <div class="steps">${labels.map((l, i) => `<div class="stp" id="st${i}"><i>${i + 1}</i><span>${l}</span></div>`).join("")}</div>`;
+    const step = (i, state, label) => { const el = sh.querySelector("#st" + i); if (!el) return; el.className = "stp " + state; el.querySelector("i").textContent = state === "done" ? "✓" : state === "fail" ? "!" : state === "skip" ? "–" : state === "run" ? "" : i + 1; el.querySelector("span").textContent = label; };
+    try{ const res = await analyzeFood(text, step); haptic("success"); setTimeout(() => reviewFood(res, text), 350); }
+    catch(e){ haptic("warning"); sh.innerHTML += `<p class="err">${esc(e.message)}</p><button class="btn" data-x>Close</button>`; sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet); }
+  };
+}
+function reviewFood(res, text){
+  const items = res.items;
+  const draw = () => {
+    const t = dayTotals(items), k = v => Math.round(v).toLocaleString("en-US");
+    let html = `<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>Check & save</h2><span style="width:52px"></span></div>`;
+    if (res.issues.length) html += `<div class="issues"><b>${esc(res.rby)} corrected:</b><br>${res.issues.map(esc).join("<br>")}</div>`;
+    for (const [m, label] of MEALS){
+      const list = items.map((it, i) => ({ it, i })).filter(x => x.it.meal === m); if (!list.length) continue;
+      html += `<div><div class="lbl" style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">${label}</div>`;
+      for (const { it, i } of list){
+        const kc = itemKcal(it);
+        html += `<div class="fi"><div class="nm"><b>${esc(it.nameAr || it.name)}</b><small>${esc(it.match || it.name)}${it.src ? " · " + esc(it.src) : ""}</small>
+            ${it.assumed && it.note ? `<span class="warn">⚠ ${esc(it.note)}</span>` : ""}${it.flag ? `<span class="warn">⚠ ${esc(it.flag)}</span>` : ""}
+            ${it.state !== "n/a" ? `<div class="minis"><button data-st="${i}" data-v="cooked" aria-pressed="${it.state === "cooked"}">Cooked</button><button data-st="${i}" data-v="raw" aria-pressed="${it.state === "raw"}">Raw</button></div>` : ""}</div>
+          <label><input data-g="${i}" inputmode="decimal" value="${it.grams}" aria-label="Grams"><small style="display:block;text-align:right;color:var(--muted);font-size:11px">grams</small></label>
+          <span class="kc num" id="kc${i}">${kc == null ? "—" : k(kc)}</span>
+          <button class="rm" data-rm="${i}" aria-label="Remove">${ICON.close}</button></div>`;
+      }
+      html += `</div>`;
+    }
+    html += `<div class="row" style="padding-top:4px"><span class="k">Total</span><span class="v num" id="ftot">${k(t.kcal)} kcal · P ${Math.round(t.p)} · C ${Math.round(t.c)} · F ${Math.round(t.f)}</span></div>
+      <button class="btn primary" id="fsave" ${items.length ? "" : "disabled"}>Save to ${dayLabel(foodDay)}</button>
+      <p class="note" style="font-size:12px;text-align:center">Understood by ${esc(res.by)}${res.rby ? ` · checked by ${esc(res.rby)}` : ""} · maths done on your iPhone</p>`;
+    sh.innerHTML = `<div class="grab"></div>` + html;
+    bind();
+  };
+  const sh = document.querySelector(".scrim:not(.closing) .sheet");
+  const totals = () => { const t = dayTotals(items); const el = sh.querySelector("#ftot"); if (el) el.textContent = `${Math.round(t.kcal).toLocaleString("en-US")} kcal · P ${Math.round(t.p)} · C ${Math.round(t.c)} · F ${Math.round(t.f)}`; };
+  const bind = () => {
+    sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet);
+    sh.querySelectorAll("[data-g]").forEach(inp => inp.oninput = () => { const i = +inp.dataset.g, v = parseFloat(inp.value.replace(",", ".")); if (!isNaN(v) && v >= 0){ items[i].grams = Math.round(v); const kc = itemKcal(items[i]); sh.querySelector("#kc" + i).textContent = kc == null ? "—" : Math.round(kc).toLocaleString("en-US"); totals(); } });
+    sh.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { items.splice(+b.dataset.rm, 1); haptic("light"); draw(); });
+    sh.querySelectorAll("[data-st]").forEach(b => b.onclick = async () => {
+      const it = items[+b.dataset.st], v = b.dataset.v; if (it.state === v) return;
+      it.state = v; it.assumed = false; it.note = "";
+      it.name = /\b(cooked|raw|uncooked|grilled|boiled|baked|fried)\b/.test(it.name) ? it.name.replace(/\b(cooked|raw|uncooked|grilled|boiled|baked|fried)\b/, v) : `${it.name}, ${v}`;
+      it.est = null; haptic("selection"); await lookupItem(it); draw();
+    });
+    const sv = sh.querySelector("#fsave"); if (sv) sv.onclick = () => {
+      const day = S.food[foodDay] || (S.food[foodDay] = []);
+      for (const it of items) day.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), meal: it.meal, name: it.name, nameAr: it.nameAr, grams: it.grams, per100: it.per100, src: it.src, match: it.match || "" });
+      save(); closeSheet(); haptic("success"); render(); toast(`Saved ${items.length} item${items.length > 1 ? "s" : ""}`);
+    };
+  };
+  draw();
+}
+function openFoodItem(i){
+  const day = S.food[foodDay] || [], it = day[i]; if (!it) return;
+  const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>${esc(it.nameAr || it.name)}</h2><span style="width:52px"></span></div>
+    <p class="note">${esc(it.match || it.name)}${it.per100 ? ` · ${Math.round(it.per100.kcal)} kcal per 100 g · P ${it.per100.p} · C ${it.per100.c} · F ${it.per100.f}` : ""}${it.src ? ` · ${esc(it.src)}` : ""}</p>
+    <div class="wbig"><input id="ig" inputmode="decimal" value="${it.grams}" aria-label="Grams"></div>
+    <div style="text-align:center;color:var(--muted);margin-top:-10px;font-weight:600">grams</div>
+    <div class="seg" id="im">${MEALS.map(([m, l]) => `<button data-m="${m}" aria-pressed="${it.meal === m}">${l}</button>`).join("")}</div>
+    <button class="btn primary" id="is">Save</button><button class="btn danger" id="id">Delete</button>`);
+  let meal = it.meal;
+  sh.querySelectorAll("#im button").forEach(b => b.onclick = () => { meal = b.dataset.m; sh.querySelectorAll("#im button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); haptic("selection"); });
+  sh.querySelector("#is").onclick = () => { const v = parseFloat(sh.querySelector("#ig").value.replace(",", ".")); if (!isNaN(v) && v > 0) it.grams = Math.round(v); it.meal = meal; save(); closeSheet(); haptic("success"); render(); };
+  sh.querySelector("#id").onclick = () => { day.splice(i, 1); if (!day.length) delete S.food[foodDay]; save(); closeSheet(); haptic("warning"); render();
+    toast("Item deleted", { label: "Undo", fn: () => { (S.food[foodDay] || (S.food[foodDay] = [])).splice(i, 0, it); save(); render(); } }); };
+}
+async function onBarcode(code){
+  toast("Looking up product…");
+  try{
+    const r = await http({ url: `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments,serving_quantity`, headers: { "User-Agent": "Trendline/1.4 (personal iOS app)" } });
+    const d = JSON.parse(r.body || "{}");
+    if (d.status !== 1 || !d.product){ toast("Product not found. Log it by text instead."); return; }
+    const n = d.product.nutriments || {};
+    const kcal = n["energy-kcal_100g"] != null ? +n["energy-kcal_100g"] : (n["energy_100g"] != null ? n["energy_100g"]/4.184 : null);
+    if (kcal == null){ toast("This product has no nutrition info."); return; }
+    const name = [d.product.brands, d.product.product_name].filter(Boolean).join(" · ") || `Product ${code}`;
+    const h = new Date().getHours(), meal = h < 11 ? "breakfast" : h < 16 ? "lunch" : h < 21 ? "dinner" : "snack";
+    const per100 = { kcal: Math.round(kcal*10)/10, p: +(n.proteins_100g || 0), c: +(n.carbohydrates_100g || 0), f: +(n.fat_100g || 0) };
+    const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>Add product</h2><span style="width:52px"></span></div>
+      <p class="note"><b style="color:var(--fg)">${esc(name)}</b><br>${Math.round(per100.kcal)} kcal per 100 g · P ${per100.p} · C ${per100.c} · F ${per100.f} · Open Food Facts</p>
+      <div class="wbig"><input id="bg" inputmode="decimal" value="${Math.round(+d.product.serving_quantity || 100)}" aria-label="Grams"></div>
+      <div style="text-align:center;color:var(--muted);margin-top:-10px;font-weight:600">grams</div>
+      <div class="seg" id="bm">${MEALS.map(([m, l]) => `<button data-m="${m}" aria-pressed="${meal === m}">${l}</button>`).join("")}</div>
+      <button class="btn primary" id="bs">Add to ${dayLabel(foodDay)}</button>`);
+    let mm = meal;
+    sh.querySelectorAll("#bm button").forEach(b => b.onclick = () => { mm = b.dataset.m; sh.querySelectorAll("#bm button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); haptic("selection"); });
+    sh.querySelector("#bs").onclick = () => { const g = parseFloat(sh.querySelector("#bg").value.replace(",", ".")); if (isNaN(g) || g <= 0) return;
+      (S.food[foodDay] || (S.food[foodDay] = [])).push({ id: Date.now().toString(36), meal: mm, name, nameAr: "", grams: Math.round(g), per100, src: "Open Food Facts", match: name });
+      save(); closeSheet(); haptic("success"); if (tab !== "food") setTab("food"); else render(); toast("Added"); };
+  }catch(e){ toast("Couldn't reach Open Food Facts."); }
+}
+const KEYINFO = {
+  gemini: { title:"Gemini", role:"Understands your Arabic", site:"aistudio.google.com", what:"Reads what you wrote in Arabic or English, translates it and lists each food with its amount." },
+  groq:   { title:"Groq", role:"Checks the result", site:"console.groq.com", what:"Gives a second opinion on the food list in English and fixes missed foods or wrong amounts." },
+  usda:   { title:"USDA FoodData", role:"Nutrition values", site:"fdc.nal.usda.gov/api-key-signup", what:"Supplies measured nutrition values for foods that aren't in Trendline's built-in list." },
+  claude: { title:"Claude (optional)", role:"Most accurate understanding", site:"console.anthropic.com", what:"If you add a key, Claude reads your meals instead of Gemini. Paid per use, about a cent a month for daily logging." }
+};
+function openKeySheet(name){
+  const info = KEYINFO[name], has = keyStatus[name];
+  const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>${info.title}</h2><span style="width:52px"></span></div>
+    <p class="note">${info.what}</p>
+    <p class="note">Get a key at <b class="sel" style="color:var(--fg)">${info.site}</b>${name === "claude" ? "" : " (free)"}.</p>
+    <label class="field"><span>API key</span><input id="kv" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${has ? "Saved. Paste a new key to replace it" : "Paste your key"}"></label>
+    <button class="btn primary" id="ks">Save key</button>${has ? `<button class="btn danger" id="kr">Remove key</button>` : ""}
+    <p class="note" style="font-size:12px">Stored in this iPhone's Keychain. It is never added to backups or shown again.</p>`);
+  sh.querySelector("#ks").onclick = () => { const v = sh.querySelector("#kv").value.trim(); if (!v){ sh.querySelector("#kv").focus(); return; } nativeCmd("setKey", { name, value: v }); closeSheet(); haptic("success"); toast(`${info.title} key saved`); };
+  const kr = sh.querySelector("#kr"); if (kr) kr.onclick = () => { nativeCmd("setKey", { name, value: "" }); closeSheet(); haptic("warning"); toast(`${info.title} key removed`); };
+}
+
 /* ---------- settings ---------- */
 function renderSettings(head){
   const s = S.settings;
@@ -1097,6 +1553,7 @@ function renderSettings(head){
       ${tgl("hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
       ${s.healthRead ? `<label class="item"><span class="k">Import from<span class="h">Older readings in Apple Health are ignored</span></span><input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}" style="background:transparent;border:0;color:var(--accent);font-size:17px;width:auto"></label>` : ""}
       ${s.healthRead ? tgl("hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
+      ${tgl("aw", s.actRead, "Activity from Apple Watch", "Steps, energy burned, workouts, resting heart rate and VO₂ max")}
       ${s.healthRead ? `<button class="item" id="hs"><span class="k">Check now</span><span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
     </div>
     <div class="group-t">Daily reminder</div><div class="list">
@@ -1123,6 +1580,17 @@ function renderSettings(head){
       <div class="item"><span class="k">Accent</span><div class="swatches">${Object.keys(ACCENTS).map(k => `<button class="sw" data-acc="${k}" aria-pressed="${s.accent === k}" aria-label="${k}" style="background:${isDark() ? ACCENTS[k][0] : ACCENTS[k][1]}"></button>`).join("")}</div></div>
       ${NATIVE ? tgl("hp", s.haptics !== false, "Haptics") : ""}
     </div>`;
+  if (NATIVE){
+    const kr = n => `<button class="item" data-key="${n}"><span class="k">${KEYINFO[n].title}<span class="h">${KEYINFO[n].role}</span></span><span class="val" style="color:var(--${keyStatus[n] ? "good" : "accent"})">${keyStatus[n] ? "✓ Saved" : "Add"}</span></button>`;
+    html += `<div class="group-t">Food & AI</div><div class="list">${kr("gemini")}${kr("groq")}${kr("usda")}${kr("claude")}
+      <div class="item"><span class="k">Apple Intelligence<span class="h">Offline backup on this iPhone</span></span><span class="val">${keyStatus.local ? "✓ Available" : "Not available"}</span></div></div>
+      <p class="group-f">Food logging is optional. Keys stay in this iPhone's Keychain.</p>
+      <div class="group-t">AI models</div><div class="list">
+        <label class="item"><span class="k">Gemini</span><input type="text" id="mg" value="${esc(s.models.gemini)}" autocapitalize="off" spellcheck="false" style="width:58%;font-family:var(--font-ui);font-size:15px"></label>
+        <label class="item"><span class="k">Groq</span><input type="text" id="mq" value="${esc(s.models.groq)}" autocapitalize="off" spellcheck="false" style="width:58%;font-family:var(--font-ui);font-size:15px"></label>
+        <label class="item"><span class="k">Claude</span><input type="text" id="mc" value="${esc(s.models.claude)}" autocapitalize="off" spellcheck="false" style="width:58%;font-family:var(--font-ui);font-size:15px"></label>
+      </div><p class="group-f">Change these only if a service retires a model name.</p>`;
+  }
   if (NATIVE) html += `<div class="group-t">Privacy</div><div class="list">${tgl("lk", s.lock, "Lock with Face ID", "Asks for Face ID or your passcode when you open the app")}</div>`;
   html += `<div class="group-t">Backup</div><div class="list">
       <button class="item action" id="bx">Export backup</button>
@@ -1150,9 +1618,12 @@ function renderSettings(head){
   $("#bi").onclick = pickRestore;
   const bd = $("#bd"); let armed = false;
   bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; haptic("warning"); return; }
-    const keepLock = S.settings.lock; S = { entries:[], settings:{...DEFAULTS, lock: keepLock} }; normalize(); save(); applyTheme(); scheduleReminder(); render(); toast("All data erased"); };
+    const keepLock = S.settings.lock; S = { entries:[], settings:{...DEFAULTS, lock: keepLock}, food:{}, foodCache:{}, activity:null }; normalize(); save(); applyTheme(); scheduleReminder(); render(); toast("All data erased"); };
   if (NATIVE){
     $("#hr").onchange = e => { if (e.target.checked) connectHealth(); else { S.settings.healthRead = false; save(); } haptic("light"); render(); };
+    $("#aw").onchange = e => { if (e.target.checked) enableActivity(); else { S.settings.actRead = false; save(); haptic("light"); } };
+    document.querySelectorAll("[data-key]").forEach(b => b.onclick = () => openKeySheet(b.dataset.key));
+    [["#mg","gemini"],["#mq","groq"],["#mc","claude"]].forEach(([id, k]) => $(id).onchange = e => { const v = e.target.value.trim(); S.settings.models[k] = v || DEFAULTS.models[k]; save(); toast("Saved"); });
     $("#hw").onchange = e => { S.settings.healthWrite = e.target.checked; save(); haptic("light"); if (e.target.checked) nativeCmd("healthAuthorize", { write: true }); };
     const hn = $("#hn"); if (hn) hn.onchange = e => { S.settings.notifyWeigh = e.target.checked; save(); haptic("light"); if (e.target.checked) nativeCmd("notifyAuth"); };
     const hf = $("#hf"); if (hf) hf.onchange = e => {
@@ -1171,6 +1642,7 @@ function renderSettings(head){
     $("#hp").onchange = e => { S.settings.haptics = e.target.checked; save(); haptic("light"); };
     $("#lk").onchange = e => { const want = e.target.checked; e.target.checked = S.settings.lock; nativeCmd("lockSet", { enabled: want }); };
     nativeCmd("backupInfo");
+    nativeCmd("keyStatus");
   }
 }
 function exportFile(name, text, type){
@@ -1193,6 +1665,7 @@ function restoreBackup(text){
     if (ex){ Object.assign(ex, e, { id: ex.id }); updated++; } else { S.entries.push({ ...e, id: e.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 7) }); added++; }
   }
   if (d.settings){ const keep = { lock: S.settings.lock }; S.settings = { ...DEFAULTS, ...d.settings, ...keep }; }
+  if (d.food && typeof d.food === "object") for (const [day, list] of Object.entries(d.food)) if (Array.isArray(list) && !S.food[day]) S.food[day] = list;
   normalize(); sortEntries(); save(); applyTheme(); scheduleReminder(); checkCelebrate(true); render(); haptic("success");
   toast(`Restored: ${added} new, ${updated} updated`);
 }
@@ -1217,7 +1690,7 @@ function toast(msg, action){
 load(); applyTheme();
 document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
 render();
-if (NATIVE){ syncHealth(false); scheduleReminder(); }
+if (NATIVE){ syncHealth(false); syncActivity(true); scheduleReminder(); nativeCmd("keyStatus"); }
 checkCelebrate(S.settings.celebrated == null);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
 </script>

@@ -13,6 +13,8 @@ A personal iOS weight tracker. It smooths daily weigh-ins into a trend line so w
 - **Apple Health:** imports weigh-ins from a smart scale in the background, notifies you with weight and trend, and can save your entries back to Health
 - **Daily reminder**, skipped on days you've already weighed in
 - **Face ID lock**, haptics, light/dark themes and accent colours
+- **Optional AI food log:** write meals in Gulf Arabic or English. Gemini understands and translates, Groq checks the list, values come from a built-in table and USDA, and the app does the maths. Claude is an optional upgrade and Apple Intelligence works offline. Barcode scanning uses Open Food Facts. API keys stay in the iPhone Keychain.
+- **Apple Watch:** Activity (steps, active energy, workouts), Fitness (resting heart rate, VO₂ max) and Energy balance (deficit from your trend, burn from the watch, estimated and logged intake)
 - Rearrangeable Summary cards
 - Automatic backups in Files › On My iPhone › Trendline › Backups, plus manual backup/restore and CSV export
 
