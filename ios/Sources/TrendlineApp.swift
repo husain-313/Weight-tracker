@@ -428,10 +428,11 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             let prefs = self.settings(of: state)
             guard prefs["healthRead"] as? Bool == true else { self.stateLock.unlock(); return }
             let ignore = Set(prefs["healthIgnore"] as? [String] ?? [])
+            let importFrom = prefs["healthFrom"] as? String ?? ""
             var entries = state["entries"] as? [[String: Any]] ?? []
             var addedDays: [String] = []
             var changed = false
-            for (day, values) in days where !ignore.contains(day) {
+            for (day, values) in days where !ignore.contains(day) && day >= importFrom {
                 if let i = entries.firstIndex(where: { $0["date"] as? String == day }) {
                     if entries[i]["src"] as? String == "health", let kg = values["kg"],
                        abs((entries[i]["kg"] as? Double ?? 0) - kg) > 0.005 { entries[i]["kg"] = kg; changed = true }

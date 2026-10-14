@@ -260,7 +260,7 @@ const KEY = "trendline-scale-v1";
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.store);
 const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", body:"Body composition", records:"Records", bmi:"Body mass index" };
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", accent:"teal", step:null, chartRange:90, reportMode:"monthly",
-  healthRead:false, healthWrite:false, healthSince:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
+  healthRead:false, healthWrite:false, healthSince:null, healthFrom:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
   commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false };
 let S = { entries:[], settings:{...DEFAULTS} };
 
@@ -304,7 +304,7 @@ const U = () => S.settings.unit;
 const toU = kg => U() === "lb" ? kg*LB : kg;
 const fromU = v => U() === "lb" ? v/LB : v;
 const fw = kg => kg == null || isNaN(kg) ? "—" : toU(kg).toFixed(1);
-const fd = kg => { if (kg == null || isNaN(kg)) return "—"; const v = toU(kg); return (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v).toFixed(1); };
+const fd = kg => { if (kg == null || isNaN(kg)) return "—"; const v = toU(kg); if (Math.abs(v) < 0.05) return "0.0"; return (v > 0 ? "+" : "−") + Math.abs(v).toFixed(1); };
 const FONT = getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() || "system-ui";
 const NUMFONT = getComputedStyle(document.documentElement).getPropertyValue("--font-num").trim() || "system-ui";
 
@@ -337,6 +337,16 @@ function slope(rows, days){
   const mx = pts.reduce((s,p) => s + p.n, 0)/pts.length, my = pts.reduce((s,p) => s + p.trend, 0)/pts.length;
   let num = 0, den = 0; for (const p of pts){ num += (p.n-mx)*(p.trend-my); den += (p.n-mx)**2; }
   return den ? num/den : null;
+}
+// Start of the current run of weigh-ins (after the last gap of more than 60 days).
+function streakStart(rows){ let i0 = 0; for (let i = 1; i < rows.length; i++) if (rows[i].n - rows[i-1].n > 60) i0 = i; return i0; }
+// Change in trend over the last `days`, or null when a long gap makes the comparison meaningless.
+function changeOver(rows, days){
+  const last = rows[rows.length-1], target = last.n - days;
+  if (rows[0].n > target) return null;
+  let i0 = 0; for (let i = 0; i < rows.length; i++) if (rows[i].n <= target) i0 = i;
+  for (let i = i0 + 1; i < rows.length; i++) if (rows[i].n - rows[i-1].n > 21) return null;
+  const b = trendAt(rows, target); return b == null ? null : last.trend - b;
 }
 function startWeight(){ return S.settings.start ?? (S.entries[0] ? S.entries[0].kg : null); }
 function goalDir(){ const g = S.settings.goal, st = startWeight(); if (g == null || st == null) return -1; return g < st ? -1 : 1; }
@@ -434,7 +444,8 @@ function backupText(){
 }
 function syncHealth(full){
   if (!NATIVE || !S.settings.healthRead) return;
-  const since = (!full && S.settings.healthSince) ? fromDnum(dnum(S.settings.healthSince) - 7) : "2000-01-01";
+  let since = (!full && S.settings.healthSince) ? fromDnum(dnum(S.settings.healthSince) - 7) : "2000-01-01";
+  if (S.settings.healthFrom && since < S.settings.healthFrom) since = S.settings.healthFrom;
   nativeCmd("healthRead", { since });
 }
 function mergeHealth(samples, error){
@@ -442,7 +453,7 @@ function mergeHealth(samples, error){
   const ignore = new Set(S.settings.healthIgnore || []);
   let added = 0, changed = 0;
   for (const smp of samples){
-    if (!smp || !smp.date || ignore.has(smp.date)) continue;
+    if (!smp || !smp.date || ignore.has(smp.date) || (S.settings.healthFrom && smp.date < S.settings.healthFrom)) continue;
     const hasKg = smp.kg > 20 && smp.kg < 400;
     let ex = S.entries.find(e => e.date === smp.date);
     if (!ex){ if (!hasKg) continue; ex = { id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }; S.entries.push(ex); added++; }
@@ -466,7 +477,7 @@ function scheduleReminder(){
   nativeCmd("reminder", { enabled: !!S.settings.remind, hour: isNaN(h) ? 7 : h, minute: isNaN(m) ? 30 : m, weighedToday: S.entries.some(e => e.date === todayStr()), body });
 }
 function connectHealth(){
-  S.settings.healthRead = true; save();
+  S.settings.healthRead = true; if (!S.settings.healthFrom) S.settings.healthFrom = todayStr(); save();
   nativeCmd("healthAuthorize", { write: S.settings.healthWrite });
   if (S.settings.notifyWeigh !== false) nativeCmd("notifyAuth");
   toast("Checking Apple Health…");
@@ -584,8 +595,8 @@ const CARDS = {
   trend(rows){
     const last = rows[rows.length-1], s = slope(rows, 28), wk = s == null ? null : s*7;
     const ago = dnum(todayStr()) - last.n;
-    const change = n => { const b = trendAt(rows, last.n - n); return b == null ? null : last.trend - b; };
-    const ch = [["7 days", change(7)], ["30 days", change(30)], ["90 days", change(90)], ["All time", last.trend - rows[0].trend]];
+    const first = rows[streakStart(rows)];
+    const ch = [["7 days", changeOver(rows, 7)], ["30 days", changeOver(rows, 30)], ["90 days", changeOver(rows, 90)], ["All time", rows.length > 1 && first !== last ? last.trend - first.trend : null]];
     return `<section class="card">
       <div class="hero">
         <div><div class="lbl">Trend weight</div><div><span class="big num">${fw(last.trend)}</span><span class="unit">${U()}</span></div></div>
@@ -608,7 +619,7 @@ const CARDS = {
   predict(rows){
     const last = rows[rows.length-1], g = S.settings.goal;
     const cur = slope(rows, 28);
-    const sinceN = S.settings.goalSince ? dnum(S.settings.goalSince) : rows[0].n;
+    const sinceN = Math.max(S.settings.goalSince ? dnum(S.settings.goalSince) : -Infinity, rows[streakStart(rows)].n);
     let overall = null; const pts = rows.filter(r => r.n >= sinceN);
     if (pts.length >= 2 && last.n - pts[0].n >= 7) overall = (last.trend - pts[0].trend)/(last.n - pts[0].n);
     const commit = S.settings.commit ? S.settings.commit/7 * goalDir() : null;
@@ -1084,11 +1095,12 @@ function renderSettings(head){
     html += `<div class="group-t">Apple Health</div><div class="list">
       ${tgl("hr", s.healthRead, "Import weigh-ins", "Weight, body fat and lean mass from your scale")}
       ${tgl("hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
+      ${s.healthRead ? `<label class="item"><span class="k">Import from<span class="h">Older readings in Apple Health are ignored</span></span><input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}" style="background:transparent;border:0;color:var(--accent);font-size:17px;width:auto"></label>` : ""}
       ${s.healthRead ? tgl("hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
       ${s.healthRead ? `<button class="item" id="hs"><span class="k">Check now</span><span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
     </div>
     <div class="group-t">Daily reminder</div><div class="list">
-      ${tgl("rm", s.remind, "Remind me to weigh in", "Skipped on days you've already weighed in")}
+      ${tgl("rm", s.remind, "Remind me to weigh in", "Pick a time after you're usually up. It's skipped once you've weighed in that day.")}
       <label class="item"><span class="k">Time</span><input type="time" id="rt" value="${s.remindTime || "07:30"}" ${s.remind ? "" : "disabled"}></label>
     </div>`;
   }
@@ -1143,6 +1155,16 @@ function renderSettings(head){
     $("#hr").onchange = e => { if (e.target.checked) connectHealth(); else { S.settings.healthRead = false; save(); } haptic("light"); render(); };
     $("#hw").onchange = e => { S.settings.healthWrite = e.target.checked; save(); haptic("light"); if (e.target.checked) nativeCmd("healthAuthorize", { write: true }); };
     const hn = $("#hn"); if (hn) hn.onchange = e => { S.settings.notifyWeigh = e.target.checked; save(); haptic("light"); if (e.target.checked) nativeCmd("notifyAuth"); };
+    const hf = $("#hf"); if (hf) hf.onchange = e => {
+      const v = e.target.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+      const older = S.settings.healthFrom && v < S.settings.healthFrom;
+      S.settings.healthFrom = v;
+      const before = S.entries.length; S.entries = S.entries.filter(x => !(x.src === "health" && x.date < v)); const removed = before - S.entries.length;
+      S.settings.healthIgnore = S.settings.healthIgnore.filter(d => d >= v);
+      save(); haptic("light"); resetCelebrations(); render();
+      if (older) syncHealth(true);
+      toast(removed ? `Removed ${removed} older Apple Health weigh-in${removed > 1 ? "s" : ""}` : `Importing from ${fmtDate(v)}`);
+    };
     const hs = $("#hs"); if (hs) hs.onclick = () => { syncHealth(true); toast("Checking Apple Health…"); };
     $("#rm").onchange = e => { S.settings.remind = e.target.checked; save(); haptic("light"); scheduleReminder(); render(); if (e.target.checked) toast(`Reminder set for ${S.settings.remindTime}`); };
     $("#rt").onchange = e => { if (!e.target.value) return; S.settings.remindTime = e.target.value; save(); scheduleReminder(); toast(`Reminder set for ${e.target.value}`); };
