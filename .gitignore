@@ -2,3 +2,4 @@ ios/build/
 ios/*.xcodeproj/
 ios/Payload/
 ios/*.ipa
+ios/release-notes.md
