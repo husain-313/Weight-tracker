@@ -5,8 +5,18 @@ import UserNotifications
 
 private let appBackground = UIColor(red: 17/255, green: 21/255, blue: 28/255, alpha: 1)
 
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Bridge.shared.migrate()
+        Bridge.shared.startBackgroundHealth()
+        return true
+    }
+}
+
 @main
 struct TrendlineApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -16,7 +26,7 @@ struct TrendlineApp: App {
                 .background(Color(appBackground))
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active { Bridge.shared.send("foreground", [:]) }
+            if phase == .active { Bridge.shared.foreground() }
         }
     }
 }
@@ -30,6 +40,11 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private let fm = FileManager.default
     private let health = HKHealthStore()
     private let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass)!
+    private let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage)!
+    private let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass)!
+    private var readTypes: Set<HKObjectType> { [massType, fatType, leanType] }
+    private var observing = false
+    private let stateLock = NSLock()
     private let backupQueue = DispatchQueue(label: "trendline.backup")
 
     // MARK: Files
@@ -55,12 +70,23 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         else { try? fm.moveItem(at: old, to: stateURL) }
     }
 
-    func loadState() -> String? { try? String(contentsOf: stateURL, encoding: .utf8) }
+    func loadState() -> String? {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return try? String(contentsOf: stateURL, encoding: .utf8)
+    }
 
     private func store(_ json: String) {
         let data = Data(json.utf8)
+        stateLock.lock()
         try? data.write(to: stateURL, options: .atomic)
+        stateLock.unlock()
         backupQueue.async { self.writeBackups(data) }
+    }
+
+    /// Hands the page the saved state (it may have changed in the background), then refreshes.
+    func foreground() {
+        if let json = loadState() { send("state", ["json": json]) }
+        send("foreground", [:])
     }
 
     /// Keeps a "latest" copy plus one dated copy per week (the newest 8).
@@ -124,8 +150,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             healthRead(since: body["since"] as? String ?? "2000-01-01")
         case "healthWrite":
             if let date = body["date"] as? String, let kg = (body["kg"] as? NSNumber)?.doubleValue {
-                healthWrite(date: date, kg: kg)
+                healthReplace(date: date, kg: kg)
             }
+        case "healthDelete":
+            if let date = body["date"] as? String { healthReplace(date: date, kg: nil) }
+        case "notifyAuth":
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         case "reminder":
             reminder(enabled: body["enabled"] as? Bool ?? false,
                      hour: (body["hour"] as? NSNumber)?.intValue ?? 7,
@@ -151,55 +181,204 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     private func healthAuthorize(write: Bool) {
         guard HKHealthStore.isHealthDataAvailable() else { send("health-status", ["available": false]); return }
-        health.requestAuthorization(toShare: write ? [massType] : [], read: [massType]) { ok, error in
+        health.requestAuthorization(toShare: write ? [massType] : [], read: readTypes) { ok, error in
+            self.startBackgroundHealth()
             self.send("health-status", ["available": true, "ok": ok, "error": error?.localizedDescription ?? ""])
         }
     }
 
-    /// Sends the first weigh-in of each day (from other apps and scales) since a date.
-    private func healthRead(since: String) {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
-        let start = Bridge.date(since) ?? .distantPast
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: nil, options: [])
+    /// First reading of each day from other apps and scales: weight, body fat % and lean mass.
+    private func fetchDays(since: Date, completion: @escaping ([String: [String: Double]], Error?) -> Void) {
+        let mine = HKSource.default()
+        let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: [])
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-        let query = HKSampleQuery(sampleType: massType, predicate: predicate, limit: HKObjectQueryNoLimit,
-                                  sortDescriptors: [sort]) { _, samples, error in
-            if let error = error {
-                // Read access denied or not yet decided: report nothing new rather than an error.
-                if (error as NSError).code == HKError.Code.errorAuthorizationNotDetermined.rawValue ||
-                   (error as NSError).code == HKError.Code.errorAuthorizationDenied.rawValue {
-                    self.send("health-samples", ["samples": []])
-                } else {
-                    self.send("health-samples", ["samples": [], "error": error.localizedDescription])
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var days: [String: [String: Double]] = [:]
+        var firstError: Error?
+        let specs: [(HKQuantityType, String, HKUnit, Double)] = [
+            (massType, "kg", .gramUnit(with: .kilo), 1),
+            (fatType, "fat", .percent(), 100),
+            (leanType, "lean", .gramUnit(with: .kilo), 1),
+        ]
+        for (type, key, unit, scale) in specs {
+            group.enter()
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
+                                      sortDescriptors: [sort]) { _, samples, error in
+                lock.lock()
+                if let error = error, key == "kg" { firstError = error }
+                for case let sample as HKQuantitySample in samples ?? [] {
+                    if sample.sourceRevision.source == mine { continue }
+                    let day = Bridge.day(sample.startDate)
+                    if days[day]?[key] == nil {
+                        let value = sample.quantity.doubleValue(for: unit) * scale
+                        days[day, default: [:]][key] = (value * 1000).rounded() / 1000
+                    }
                 }
-                return
+                lock.unlock()
+                group.leave()
             }
-            let mine = HKSource.default()
-            var byDay: [String: Double] = [:]
-            for case let sample as HKQuantitySample in samples ?? [] {
-                if sample.sourceRevision.source == mine { continue }
-                let day = Bridge.day(sample.startDate)
-                if byDay[day] == nil {
-                    byDay[day] = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
-                }
-            }
-            let list = byDay.map { ["date": $0.key, "kg": ($0.value * 1000).rounded() / 1000] as [String: Any] }
-            self.send("health-samples", ["samples": list])
+            health.execute(query)
         }
-        health.execute(query)
+        group.notify(queue: .global()) { completion(days, firstError) }
     }
 
-    private func healthWrite(date: String, kg: Double) {
+    private func healthRead(since: String) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        var when = Date()
-        if date != Bridge.day(Date()), let day = Bridge.date(date) {
-            when = Calendar.current.date(byAdding: .hour, value: 8, to: day) ?? day
+        fetchDays(since: Bridge.date(since) ?? .distantPast) { days, error in
+            if let error = error as NSError?,
+               error.code != HKError.Code.errorAuthorizationNotDetermined.rawValue,
+               error.code != HKError.Code.errorAuthorizationDenied.rawValue {
+                self.send("health-samples", ["samples": [], "error": error.localizedDescription])
+                return
+            }
+            let list: [[String: Any]] = days.map { day, values in
+                var item: [String: Any] = ["date": day]
+                for (k, v) in values { item[k] = v }
+                return item
+            }
+            self.send("health-samples", ["samples": list])
         }
-        let quantity = HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kg)
-        let sample = HKQuantitySample(type: massType, quantity: quantity, start: when, end: when)
-        health.save(sample) { ok, _ in
-            if !ok { self.send("toast", ["text": "Could not save to Apple Health. Check access in the Health app."]) }
+    }
+
+    /// Removes this app's own weight samples for a day, then saves the new weight (if any).
+    /// Keeps Apple Health free of duplicates when a weigh-in is edited or deleted.
+    private func healthReplace(date: String, kg: Double?) {
+        guard HKHealthStore.isHealthDataAvailable(), let day = Bridge.date(date),
+              let next = Calendar.current.date(byAdding: .day, value: 1, to: day) else { return }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: day, end: next, options: []),
+            HKQuery.predicateForObjects(from: HKSource.default()),
+        ])
+        health.deleteObjects(of: massType, predicate: predicate) { _, _, _ in
+            guard let kg = kg else { return }
+            var when = Date()
+            if date != Bridge.day(Date()) {
+                when = Calendar.current.date(byAdding: .hour, value: 8, to: day) ?? day
+            }
+            let sample = HKQuantitySample(type: self.massType,
+                                          quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kg),
+                                          start: when, end: when)
+            self.health.save(sample) { ok, _ in
+                if !ok { self.send("toast", ["text": "Could not save to Apple Health. Check access in the Health app."]) }
+            }
         }
+    }
+
+    // MARK: Background sync from a smart scale
+
+    private func settings(of state: [String: Any]?) -> [String: Any] { state?["settings"] as? [String: Any] ?? [:] }
+
+    /// Wakes the app whenever a new weight lands in Apple Health (for example from a Wi-Fi scale).
+    func startBackgroundHealth() {
+        guard HKHealthStore.isHealthDataAvailable(), !observing else { return }
+        let state = loadState().flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+        guard settings(of: state)["healthRead"] as? Bool == true else { return }
+        observing = true
+        let query = HKObserverQuery(sampleType: massType, predicate: nil) { _, completion, error in
+            guard error == nil else { completion(); return }
+            self.handleHealthChange(completion)
+        }
+        health.execute(query)
+        health.enableBackgroundDelivery(for: massType, frequency: .immediate) { _, _ in }
+    }
+
+    private func handleHealthChange(_ done: @escaping () -> Void) {
+        DispatchQueue.main.async {
+            // While the app is on screen, the page does the import itself.
+            if UIApplication.shared.applicationState == .active, self.webView != nil {
+                self.send("foreground", [:])
+                done()
+                return
+            }
+            self.importInBackground(done)
+        }
+    }
+
+    private func importInBackground(_ done: @escaping () -> Void) {
+        guard let since = Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: Date())) else { done(); return }
+        fetchDays(since: since) { days, _ in
+            defer { done() }
+            self.stateLock.lock()
+            guard let text = try? String(contentsOf: self.stateURL, encoding: .utf8),
+                  var state = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else {
+                self.stateLock.unlock(); return
+            }
+            let prefs = self.settings(of: state)
+            guard prefs["healthRead"] as? Bool == true else { self.stateLock.unlock(); return }
+            let ignore = Set(prefs["healthIgnore"] as? [String] ?? [])
+            var entries = state["entries"] as? [[String: Any]] ?? []
+            var addedDays: [String] = []
+            var changed = false
+            for (day, values) in days where !ignore.contains(day) {
+                if let i = entries.firstIndex(where: { $0["date"] as? String == day }) {
+                    if entries[i]["src"] as? String == "health", let kg = values["kg"],
+                       abs((entries[i]["kg"] as? Double ?? 0) - kg) > 0.005 { entries[i]["kg"] = kg; changed = true }
+                    if let fat = values["fat"], entries[i]["fat"] as? Double != fat { entries[i]["fat"] = fat; changed = true }
+                    if let lean = values["lean"], entries[i]["lean"] as? Double != lean { entries[i]["lean"] = lean; changed = true }
+                } else if let kg = values["kg"], kg > 20, kg < 400 {
+                    var entry: [String: Any] = ["id": "h" + day, "date": day, "kg": kg, "note": "", "src": "health"]
+                    if let fat = values["fat"] { entry["fat"] = fat }
+                    if let lean = values["lean"] { entry["lean"] = lean }
+                    entries.append(entry)
+                    addedDays.append(day)
+                    changed = true
+                }
+            }
+            guard changed else { self.stateLock.unlock(); return }
+            entries.sort { ($0["date"] as? String ?? "") < ($1["date"] as? String ?? "") }
+            state["entries"] = entries
+            var newPrefs = prefs
+            newPrefs["healthSince"] = Bridge.day(Date())
+            state["settings"] = newPrefs
+            guard let data = try? JSONSerialization.data(withJSONObject: state) else { self.stateLock.unlock(); return }
+            try? data.write(to: self.stateURL, options: .atomic)
+            self.stateLock.unlock()
+            self.backupQueue.async { self.writeBackups(data) }
+
+            let today = Bridge.day(Date())
+            if addedDays.contains(today) {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["weigh-0"])
+            }
+            if let newest = addedDays.max(), prefs["notifyWeigh"] as? Bool != false {
+                self.notifyWeighIn(day: newest, entries: entries, prefs: prefs)
+            }
+        }
+    }
+
+    /// Same smoothing as the page: exponential average that respects gaps between weigh-ins.
+    private func notifyWeighIn(day: String, entries: [[String: Any]], prefs: [String: Any]) {
+        let alpha = prefs["smooth"] as? Double ?? 0.1
+        var trend: Double?
+        var previousTrend: Double?
+        var prevDay: Double?
+        var weight = 0.0
+        for e in entries {
+            guard let d = e["date"] as? String, let kg = e["kg"] as? Double, let n = Bridge.dayNumber(d) else { continue }
+            previousTrend = trend
+            if let t = trend, let p = prevDay {
+                trend = t + (1 - pow(1 - alpha, max(1, n - p))) * (kg - t)
+            } else { trend = kg }
+            prevDay = n
+            if d == day { weight = kg; break }
+        }
+        guard let t = trend else { return }
+        let lb = (prefs["unit"] as? String) == "lb"
+        let f: (Double) -> String = { String(format: "%.1f", lb ? $0 * 2.2046226218 : $0) }
+        let unit = lb ? "lb" : "kg"
+        var body = "Trend \(f(t)) \(unit)"
+        if let p = previousTrend {
+            let delta = t - p
+            body += abs(delta) < 0.05 ? " · steady" : (delta < 0 ? " · ↓ \(f(abs(delta)))" : " · ↑ \(f(delta))")
+        }
+        if let fat = entries.first(where: { $0["date"] as? String == day })?["fat"] as? Double {
+            body += String(format: " · %.1f%% fat", fat)
+        }
+        let content = UNMutableNotificationContent()
+        content.title = "Weighed in: \(f(weight)) \(unit)"
+        content.body = body
+        content.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "weighed-\(day)", content: content, trigger: nil))
     }
 
     // MARK: Reminders
@@ -275,12 +454,20 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         dayFormatter.timeZone = .current
         return dayFormatter.date(from: day)
     }
+    /// Days since 1970 for a yyyy-MM-dd string (calendar days, no time zone shifts).
+    static func dayNumber(_ day: String) -> Double? {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        guard let d = utc.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) else { return nil }
+        return (d.timeIntervalSince1970 / 86400).rounded()
+    }
 }
 
 struct WebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let bridge = Bridge.shared
-        bridge.migrate()
 
         let content = WKUserContentController()
         var stateLiteral = "null"

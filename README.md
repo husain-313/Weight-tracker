@@ -10,7 +10,9 @@ A personal iOS weight tracker inspired by Happy Scale. It smooths daily weigh-in
 - Weekly and monthly reports, logbook grouped by month with notes
 - BMI from your height, kg or lb, light / dark theme
 - **Apple Health:** imports weigh-ins from smart scales and other apps, and can save your entries to Health
-- **Daily reminder** at a time you choose, skipped on days you've already logged
+- **Background scale sync:** when a Wi-Fi scale writes to Apple Health, the app imports the weigh-in even while closed and sends a notification with your weight and trend
+- **Body composition:** body fat % and lean mass from Health, with a trend and 30-day change
+- **Daily reminder** at a time you choose, skipped on days you've already logged (including scale weigh-ins)
 - **Automatic backups** in Files › On My iPhone › Trendline › Backups (latest copy plus 8 weekly copies)
 - Manual backup (.json), CSV export, CSV import (works with Happy Scale exports)
 - Fully offline

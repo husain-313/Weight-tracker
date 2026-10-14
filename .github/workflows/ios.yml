@@ -58,8 +58,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline Scale 1.1 (build ${{ github.run_number }})
+          name: Trendline Scale 1.2 (build ${{ github.run_number }})
           body: |
-            Version 1.1: Apple Health sync, daily weigh-in reminder, automatic backups in the Files app, offline fonts.
+            Version 1.2: background sync from your smart scale with a notification after each weigh-in, body fat and lean mass from Apple Health, today's reminder skipped once the scale syncs, no duplicate weights in Health after edits or deletes.
             Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
           files: ios/TrendlineScale.ipa

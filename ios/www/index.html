@@ -194,7 +194,7 @@ nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:8px 12px calc
 /* ---------- storage ---------- */
 const KEY = "trendline-scale-v1";
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", step:null, chartRange:90, reportMode:"monthly",
-  healthRead:false, healthWrite:false, healthSince:null, healthIgnore:[], remind:false, remindTime:"07:30" };
+  healthRead:false, healthWrite:false, healthSince:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true };
 let S = { entries:[], settings:{...DEFAULTS} };
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.store);
 function load(){
@@ -217,6 +217,15 @@ window.__native = function(event, p){
   else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
   else if (event === "foreground"){ syncHealth(false); scheduleReminder(); if (S.entries.length && tab !== "settings") render(); }
   else if (event === "toast") toast(p.text || "");
+  else if (event === "state"){
+    try{
+      const d = JSON.parse(p.json);
+      if (d && Array.isArray(d.entries) && JSON.stringify(d) !== JSON.stringify(S)){
+        S.entries = d.entries; S.settings = {...DEFAULTS, ...(d.settings||{})}; sortEntries();
+        if (!document.querySelector(".scrim")) render();
+      }
+    }catch(e){}
+  }
 };
 function backupText(){
   if (!backupInfo || !backupInfo.last) return "No automatic backup yet. One is saved the next time you change something.";
@@ -233,10 +242,15 @@ function mergeHealth(samples, error){
   const ignore = new Set(S.settings.healthIgnore || []);
   let added = 0, changed = 0;
   for (const smp of samples){
-    if (!smp || !smp.date || !(smp.kg > 20 && smp.kg < 400) || ignore.has(smp.date)) continue;
-    const ex = S.entries.find(e => e.date === smp.date);
-    if (!ex){ S.entries.push({ id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }); added++; }
-    else if (ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
+    if (!smp || !smp.date || ignore.has(smp.date)) continue;
+    const hasKg = smp.kg > 20 && smp.kg < 400;
+    let ex = S.entries.find(e => e.date === smp.date);
+    if (!ex){
+      if (!hasKg) continue;
+      ex = { id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }; S.entries.push(ex); added++;
+    } else if (hasKg && ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
+    if (smp.fat > 1 && smp.fat < 75 && ex.fat !== smp.fat){ ex.fat = smp.fat; changed++; }
+    if (smp.lean > 10 && smp.lean < 200 && ex.lean !== smp.lean){ ex.lean = smp.lean; changed++; }
   }
   S.settings.healthSince = todayStr();
   sortEntries(); save();
@@ -249,6 +263,23 @@ function scheduleReminder(){
   let body = "Step on the scale before breakfast.";
   if (S.entries.length){ const r = computeTrend(); body = `Your trend is ${fw(r[r.length-1].trend)} ${U()}. Step on the scale before breakfast.`; }
   nativeCmd("reminder", { enabled: !!S.settings.remind, hour: isNaN(h)?7:h, minute: isNaN(m)?30:m, weighedToday: S.entries.some(e => e.date === todayStr()), body });
+}
+
+/* ---------- body composition ---------- */
+function compSeries(field){
+  const a = S.settings.smooth; let t = null, prev = null;
+  return S.entries.filter(e => typeof e[field] === "number").map(e => {
+    const n = dnum(e.date);
+    if (t === null) t = e[field]; else { const f = 1 - Math.pow(1 - a, Math.max(1, n - prev)); t += f * (e[field] - t); }
+    prev = n; return { n, date: e.date, v: e[field], trend: t };
+  });
+}
+function compChange(rows, days){
+  if (rows.length < 2) return null;
+  const last = rows[rows.length-1]; const target = last.n - days;
+  let base = null; for (const r of rows){ if (r.n <= target) base = r; }
+  if (!base){ if (last.n - rows[0].n < days/2) return null; base = rows[0]; }
+  return last.trend - base.trend;
 }
 
 function sortEntries(){ S.entries.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
@@ -418,6 +449,24 @@ function renderSummary(){
   html += `</section>`;
 
   // records & BMI
+  const fatRows = compSeries("fat"), leanRows = compSeries("lean");
+  if (fatRows.length || leanRows.length){
+    const fl = fatRows[fatRows.length-1], ll = leanRows[leanRows.length-1];
+    const fc = compChange(fatRows, 30), lc = compChange(leanRows, 30);
+    const fTone = fc==null||Math.abs(fc)<0.05 ? "flat" : fc < 0 ? "good" : "bad";
+    const lTone = lc==null||Math.abs(lc)<0.05 ? "flat" : lc > 0 ? "good" : "bad";
+    html += `<section class="card"><h2>Body composition</h2>
+      <div class="rgrid">
+        <div class="rbox"><div class="k">Body fat</div><div class="v num">${fl?fl.trend.toFixed(1)+"%":"—"}</div>
+          <div class="s">${fc==null?"30-day change after more readings":`<span style="color:var(--${fTone==="flat"?"muted":fTone})">${arrow(fc)} ${Math.abs(fc).toFixed(1)} pts</span> in 30 days`}</div></div>
+        <div class="rbox"><div class="k">Lean mass</div><div class="v num">${ll?fw(ll.trend)+" "+U():"—"}</div>
+          <div class="s">${lc==null?"30-day change after more readings":`<span style="color:var(--${lTone==="flat"?"muted":lTone})">${arrow(lc)} ${Math.abs(toU(lc)).toFixed(1)} ${U()}</span> in 30 days`}</div></div>
+      </div>
+      ${fatRows.length > 1 ? `<canvas class="spark" id="fatSpark" aria-label="Body fat trend"></canvas>` : ""}
+      <p class="note" style="font-size:13px">From your smart scale via Apple Health. Daily readings swing with hydration, so follow the trend.</p>
+    </section>`;
+  }
+
   html += `<section class="card"><h2>Records</h2><div class="kv">
     <div class="row"><span class="k">Highest</span><span class="v"><span class="num">${fw(hi.kg)}</span> <small class="k">${fmtDate(hi.date)}</small></span></div>
     <div class="row"><span class="k">Lowest</span><span class="v"><span class="num">${fw(lo.kg)}</span> <small class="k">${fmtDate(lo.date)}</small></span></div>
@@ -443,6 +492,7 @@ function renderSummary(){
   $("#editGoal").onclick = () => setTab("settings");
   const gs = $("#goSet"); if (gs) gs.onclick = () => setTab("settings");
   drawChart(rows);
+  drawFatSpark();
 }
 
 /* ---------- chart ---------- */
@@ -510,6 +560,18 @@ function drawChart(allRows){
 }
 window.addEventListener("resize", () => { if (tab === "summary" && S.entries.length) drawChart(computeTrend()); });
 
+function drawFatSpark(){
+  const cv = document.getElementById("fatSpark"); if (!cv) return;
+  const rows = compSeries("fat").slice(-90);
+  const dpr = devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr,dpr);
+  const v = rows.flatMap(r=>[r.v,r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi-lo<1){ const m=(hi+lo)/2; lo=m-.5; hi=m+.5; }
+  const a = rows[0].n, b = Math.max(rows[rows.length-1].n, a+1);
+  const X = n => 6 + (n-a)/(b-a)*(W-12), Y = w => 6 + (hi-w)/(hi-lo)*(H-12);
+  c.fillStyle = css("--muted"); rows.forEach(r => { c.beginPath(); c.arc(X(r.n), Y(r.v), 2, 0, 7); c.fill(); });
+  c.strokeStyle = css("--warn"); c.lineWidth = 2; c.beginPath(); rows.forEach((r,i)=> i? c.lineTo(X(r.n),Y(r.trend)) : c.moveTo(X(r.n),Y(r.trend))); c.stroke();
+}
+
 /* ---------- reports ---------- */
 function periodKey(r, mode){
   if (mode === "monthly") return r.date.slice(0,7);
@@ -568,7 +630,7 @@ function renderLogbook(){
       html += `<button class="lrow" data-id="${esc(r.id)}"><span class="d"><b class="num">${pad(p.d)}</b><small>${WD[p.wd]}</small></span>
         <span class="w num">${fw(r.kg)}</span><span class="t num">${fw(r.trend)}</span>
         <span class="rate">${rt==null?`<span class="chip flat">—</span>`:`<span class="chip ${tone(rt)} num">${arrow(rt)} ${Math.abs(toU(rt)).toFixed(1)}</span>`}</span>
-        ${r.note?`<span class="memo">${esc(r.note)}</span>`:r.src==="health"?`<span class="memo">From Apple Health</span>`:""}</button>`;
+        ${(()=>{ const bits=[]; if (r.note) bits.push(esc(r.note)); if (typeof r.fat==="number") bits.push(`${r.fat.toFixed(1)}% fat`); if (!r.note && r.src==="health") bits.push("From Apple Health"); return bits.length?`<span class="memo">${bits.join(" · ")}</span>`:""; })()}</button>`;
     });
     html += `</section>`;
   });
@@ -605,6 +667,7 @@ function openEntry(entry){
     const del = $("#edel"); let armed = false;
     del.onclick = () => { if (!armed){ armed = true; del.textContent = "Tap again to delete"; return; }
       if (entry.src === "health"){ S.settings.healthIgnore = [...new Set([...(S.settings.healthIgnore||[]), entry.date])]; }
+      else if (S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
       S.entries = S.entries.filter(e => e.id !== entry.id); save(); closeSheet(); render(); scheduleReminder(); toast("Weigh-in deleted"); };
   }
   $("#ef").addEventListener("submit", ev => {
@@ -614,11 +677,15 @@ function openEntry(entry){
     const kg = fromU(v);
     if (isNaN(v) || kg < 20 || kg > 400){ err.hidden = false; err.textContent = `Enter a weight between ${toU(20).toFixed(0)} and ${toU(400).toFixed(0)} ${U()}.`; return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.hidden = false; err.textContent = "Pick a date."; return; }
+    if (entry && entry.date !== date && S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
+    const keepComp = entry ? { fat: entry.fat, lean: entry.lean } : {};
     if (entry) S.entries = S.entries.filter(e => e.id !== entry.id);
     const same = S.entries.find(e => e.date === date);
     const kgR = Math.round(kg*1000)/1000;
     if (same){ same.kg = kgR; same.note = note || same.note || ""; delete same.src; }
-    else S.entries.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, kg: kgR, note });
+    else { const ne = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, kg: kgR, note };
+      if (entry && entry.date === date){ if (typeof keepComp.fat === "number") ne.fat = keepComp.fat; if (typeof keepComp.lean === "number") ne.lean = keepComp.lean; }
+      S.entries.push(ne); }
     sortEntries(); save(); closeSheet(); render(); toast(same ? "Updated that day's weigh-in" : "Saved");
     if (S.settings.healthWrite) nativeCmd("healthWrite", { date, kg: kgR });
     scheduleReminder();
@@ -632,6 +699,7 @@ function renderSettings(){
   <section class="card"><h2>Apple Health</h2><div class="set">
     <label><span class="k">Import weigh-ins<span class="h">Reads weight from your smart scale or other apps. Your own entries always win.</span></span><input type="checkbox" class="tg" id="hr" ${s.healthRead?"checked":""}></label>
     <label><span class="k">Save weigh-ins to Health<span class="h">Each weight you log here is added to Apple Health</span></span><input type="checkbox" class="tg" id="hw" ${s.healthWrite?"checked":""}></label>
+    ${s.healthRead?`<label><span class="k">Notify me after each weigh-in<span class="h">Shows your weight and trend as soon as your scale syncs, even when Trendline is closed</span></span><input type="checkbox" class="tg" id="hn" ${s.notifyWeigh!==false?"checked":""}></label>`:""}
     ${s.healthRead?`<div class="item"><span class="k">Last checked<span class="h">${s.healthSince?fmtDate(s.healthSince):"Not yet"}</span></span><button class="btn" id="hs" style="padding:8px 14px">Check now</button></div>`:""}
   </div></section>
 
@@ -682,11 +750,12 @@ function renderSettings(){
   $("#sa").onchange = e => { S.settings.smooth = parseFloat(e.target.value); save(); toast("Saved"); };
   $("#st").onchange = e => { S.settings.theme = e.target.value; save(); applyTheme(); };
   $("#bx").onclick = () => download(`weight-backup-${todayStr()}.json`, JSON.stringify(S, null, 1), "application/json");
-  $("#bc").onclick = () => { const rows = computeTrend(); download(`weight-${todayStr()}.csv`, "Date,Weight (kg),Trend (kg),Note\n" + rows.map(r => `${r.date},${r.kg.toFixed(2)},${r.trend.toFixed(2)},"${(r.note||"").replace(/"/g,'""')}"`).join("\n"), "text/csv"); };
+  $("#bc").onclick = () => { const rows = computeTrend(); download(`weight-${todayStr()}.csv`, "Date,Weight (kg),Trend (kg),Body fat (%),Lean mass (kg),Note\n" + rows.map(r => `${r.date},${r.kg.toFixed(2)},${r.trend.toFixed(2)},${typeof r.fat==="number"?r.fat.toFixed(1):""},${typeof r.lean==="number"?r.lean.toFixed(2):""},"${(r.note||"").replace(/"/g,'""')}"`).join("\n"), "text/csv"); };
   $("#bi").onclick = pickImport;
   if (NATIVE){
-    $("#hr").onchange = e => { S.settings.healthRead = e.target.checked; save(); if (e.target.checked) nativeCmd("healthAuthorize", {write: S.settings.healthWrite}); renderSettings(); };
+    $("#hr").onchange = e => { S.settings.healthRead = e.target.checked; save(); if (e.target.checked){ nativeCmd("healthAuthorize", {write: S.settings.healthWrite}); if (S.settings.notifyWeigh !== false) nativeCmd("notifyAuth"); } renderSettings(); };
     $("#hw").onchange = e => { S.settings.healthWrite = e.target.checked; save(); if (e.target.checked) nativeCmd("healthAuthorize", {write: true}); };
+    const hn = $("#hn"); if (hn) hn.onchange = e => { S.settings.notifyWeigh = e.target.checked; save(); if (e.target.checked) nativeCmd("notifyAuth"); };
     const hs = $("#hs"); if (hs) hs.onclick = () => { syncHealth(true); toast("Checking Apple Health…"); };
     $("#rm").onchange = e => { S.settings.remind = e.target.checked; save(); scheduleReminder(); renderSettings(); if (e.target.checked) toast(`Reminder set for ${S.settings.remindTime}`); };
     $("#rt").onchange = e => { if (!e.target.value) return; S.settings.remindTime = e.target.value; save(); scheduleReminder(); toast(`Reminder set for ${e.target.value}`); };
