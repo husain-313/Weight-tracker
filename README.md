@@ -1,21 +1,20 @@
-# Trendline Scale
+# Trendline
 
-A personal iOS weight tracker inspired by Happy Scale. It smooths daily weigh-ins into a trend line so water-weight swings don't hide real progress.
+A personal iOS weight tracker. It smooths daily weigh-ins into a trend line so water-weight swings don't hide real progress.
 
 ## Features
-- Smoothed trend weight (exponential moving average that respects gaps between weigh-ins)
-- Weekly rate, 7 / 30 / 90-day and all-time change
-- Chart with weigh-ins, trend line and goal line (tap to inspect a day)
-- Goal progress, milestones and predicted finish date
-- Weekly and monthly reports, logbook grouped by month with notes
-- BMI from your height, kg or lb, light / dark theme
-- **Apple Health:** imports weigh-ins from smart scales and other apps, and can save your entries to Health
-- **Background scale sync:** when a Wi-Fi scale writes to Apple Health, the app imports the weigh-in even while closed and sends a notification with your weight and trend
-- **Body composition:** body fat % and lean mass from Health, with a trend and 30-day change
-- **Daily reminder** at a time you choose, skipped on days you've already logged (including scale weigh-ins)
-- **Automatic backups** in Files › On My iPhone › Trendline › Backups (latest copy plus 8 weekly copies)
-- Manual backup (.json), CSV export, CSV import (works with Happy Scale exports)
-- Fully offline
+- **Trend weight** with weekly rate and 7 / 30 / 90-day and all-time change
+- **Weight chart** (7D, 30D, 90D, 1Y, All) with full-screen view and tap-to-inspect
+- **Predictions:** finish dates from your weekly commitment, your current rate and your overall rate
+- **Goal progress** with milestones and a celebration when you pass each one
+- **Body composition:** body fat % and lean mass from Apple Health
+- **Reports** by week or month, shareable as images
+- **Logbook** grouped by month: swipe to delete with undo, choose columns
+- **Apple Health:** imports weigh-ins from a smart scale in the background, notifies you with weight and trend, and can save your entries back to Health
+- **Daily reminder**, skipped on days you've already weighed in
+- **Face ID lock**, haptics, light/dark themes and accent colours
+- Rearrangeable Summary cards
+- Automatic backups in Files › On My iPhone › Trendline › Backups, plus manual backup/restore and CSV export
 
 ## Get the app
 Every push to `main` builds an unsigned `TrendlineScale.ipa` with GitHub Actions and attaches it to a new release under **Releases**.
@@ -23,6 +22,6 @@ Install it with a signing tool such as Sideloadly or AltStore. Free Apple IDs ne
 
 ## Project layout
 - `ios/www/index.html` — the app's interface and logic
-- `ios/Sources/TrendlineApp.swift` — native shell: storage, backups, Apple Health, reminders, share sheet
+- `ios/Sources/TrendlineApp.swift` — native shell: storage, backups, Apple Health, background sync, notifications, Face ID, haptics, sharing
 - `ios/project.yml` — XcodeGen project spec
 - `.github/workflows/ios.yml` — builds the IPA and publishes a release

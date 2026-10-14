@@ -26,6 +26,7 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         NSHealthShareUsageDescription: Trendline reads your weight, body fat and lean mass from Apple Health so weigh-ins from your smart scale appear automatically.
         NSHealthUpdateUsageDescription: Trendline saves the weights you log to Apple Health.
+        NSFaceIDUsageDescription: Trendline uses Face ID to keep your weight data private.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.husain313.trendline
@@ -34,5 +35,5 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: TrendlineScale.entitlements
-        MARKETING_VERSION: "1.2"
+        MARKETING_VERSION: "1.3"
         CURRENT_PROJECT_VERSION: "1"

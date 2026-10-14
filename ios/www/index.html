@@ -2,288 +2,291 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Trendline Scale</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
+<title>Trendline</title>
 <style>
-@font-face{font-family:"Figtree";font-weight:400;font-display:swap;src:url("fonts/figtree-latin-400-normal.woff2") format("woff2")}
-@font-face{font-family:"Figtree";font-weight:500;font-display:swap;src:url("fonts/figtree-latin-500-normal.woff2") format("woff2")}
-@font-face{font-family:"Figtree";font-weight:600;font-display:swap;src:url("fonts/figtree-latin-600-normal.woff2") format("woff2")}
-@font-face{font-family:"Figtree";font-weight:700;font-display:swap;src:url("fonts/figtree-latin-700-normal.woff2") format("woff2")}
-@font-face{font-family:"Figtree";font-weight:800;font-display:swap;src:url("fonts/figtree-latin-800-normal.woff2") format("woff2")}
-@font-face{font-family:"Martian Mono";font-weight:400;font-display:swap;src:url("fonts/martian-mono-latin-400-normal.woff2") format("woff2")}
-@font-face{font-family:"Martian Mono";font-weight:500;font-display:swap;src:url("fonts/martian-mono-latin-500-normal.woff2") format("woff2")}
-@font-face{font-family:"Martian Mono";font-weight:600;font-display:swap;src:url("fonts/martian-mono-latin-600-normal.woff2") format("woff2")}
-/* Layout: one-column phone app, fixed tab bar at the bottom, cards stacked by importance */
+/* Layout: native iOS-style single column. Fixed top bar that fades in on scroll, large title in content,
+   floating tab bar + add button at the bottom, bottom sheets for editing. */
 :root{
-  --bg:#11151c; --surface:#1a1f29; --surface-2:#232a36; --line:#2c3442;
-  --fg:#e9edf3; --muted:#8c96a8; --accent:#5cc8d6; --accent-ink:#06262b;
-  --good:#5fcf8f; --good-bg:rgba(95,207,143,.14);
-  --bad:#f0806a; --bad-bg:rgba(240,128,106,.15);
-  --warn:#e8c26a;
-  --font-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --font-num:"Martian Mono",ui-monospace,"SF Mono",Menlo,monospace;
-  --r:18px;
-  color-scheme:dark;
-}
-@media (prefers-color-scheme: light){
-  :root:not([data-theme="dark"]){
-    --bg:#eef1f5; --surface:#ffffff; --surface-2:#f2f5f9; --line:#dde3ec;
-    --fg:#141a24; --muted:#5d6879; --accent:#0f8b9a; --accent-ink:#ffffff;
-    --good:#1f9a5a; --good-bg:rgba(31,154,90,.12);
-    --bad:#d2533a; --bad-bg:rgba(210,83,58,.12); --warn:#a87b12;
-    color-scheme:light;
-  }
-}
-:root[data-theme="light"]{
-  --bg:#eef1f5; --surface:#ffffff; --surface-2:#f2f5f9; --line:#dde3ec;
-  --fg:#141a24; --muted:#5d6879; --accent:#0f8b9a; --accent-ink:#ffffff;
-  --good:#1f9a5a; --good-bg:rgba(31,154,90,.12);
-  --bad:#d2533a; --bad-bg:rgba(210,83,58,.12); --warn:#a87b12;
+  --bg:#f2f3f7; --surface:#ffffff; --surface-2:#f0f2f6; --sheet:#ffffff; --bar:rgba(242,243,247,.82);
+  --line:#e2e5ec; --line-strong:#c9ced8; --fg:#10141c; --muted:#667085;
+  --accent:#0f8b9a; --accent-ink:#ffffff;
+  --good:#1d9a5b; --good-bg:rgba(29,154,91,.13);
+  --bad:#d64532; --bad-bg:rgba(214,69,50,.12);
+  --warn:#b07d10;
+  --font-ui:-apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  --font-num:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;
   color-scheme:light;
 }
-*{box-sizing:border-box}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1116; --surface:#1a1e26; --surface-2:#252a34; --sheet:#1c2029; --bar:rgba(14,17,22,.8);
+    --line:#2c323d; --line-strong:#4a5160; --fg:#f2f4f8; --muted:#8d96a7;
+    --accent:#5cc8d6; --accent-ink:#0b1216;
+    --good:#3ccf86; --good-bg:rgba(60,207,134,.15);
+    --bad:#ff6b5e; --bad-bg:rgba(255,107,94,.15);
+    --warn:#ffc85a;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --surface:#1a1e26; --surface-2:#252a34; --sheet:#1c2029; --bar:rgba(14,17,22,.8);
+  --line:#2c323d; --line-strong:#4a5160; --fg:#f2f4f8; --muted:#8d96a7;
+  --accent:#5cc8d6; --accent-ink:#0b1216;
+  --good:#3ccf86; --good-bg:rgba(60,207,134,.15);
+  --bad:#ff6b5e; --bad-bg:rgba(255,107,94,.15);
+  --warn:#ffc85a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--fg)}
-body{font-family:var(--font-ui);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;
-  -webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
-button,input,select,textarea{font:inherit;color:inherit}
-.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+body{font-family:var(--font-ui);font-size:17px;line-height:1.35;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text;font:inherit;color:inherit}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;text-align:inherit}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{display:block}
+[hidden]{display:none!important}
 
-header.top{position:sticky;top:0;z-index:5;background:var(--bg);
-  padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-header.top h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em}
-header.top .sub{color:var(--muted);font-size:13px}
+/* top bar */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:20;padding-top:env(safe-area-inset-top,0px);border-bottom:.5px solid transparent;transition:background .2s,border-color .2s}
+.topbar.scrolled{background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom-color:var(--line)}
+.tb-inner{height:44px;display:flex;align-items:center;justify-content:center;position:relative;max-width:680px;margin:0 auto}
+.tb-title{font-weight:600;font-size:17px;opacity:0;transition:opacity .2s}
+.scrolled .tb-title{opacity:1}
+.tb-actions{position:absolute;right:16px;top:4px;display:flex;gap:8px}
+.icon-btn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent)}
+.icon-btn svg{width:19px;height:19px}
 
-main{padding:4px 16px calc(env(safe-area-inset-bottom,0px) + 110px);max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-.card{background:var(--surface);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
-.card h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
-.card h2 button{font-size:13px;letter-spacing:0;text-transform:none}
-.link{background:none;border:0;color:var(--accent);padding:4px 0;cursor:pointer;font-weight:600}
+main{padding:calc(env(safe-area-inset-top,0px) + 44px) 16px calc(env(safe-area-inset-bottom,0px) + 112px);max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+main.enter{animation:enter .28s cubic-bezier(.2,.8,.3,1)}
+@keyframes enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+h1.large{margin:2px 0 0;font-size:34px;font-weight:800;letter-spacing:-.025em;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:0}
 
-/* hero */
-.hero{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:end}
-.hero .big{font-size:52px;font-weight:600;line-height:1}
-.hero .unit{font-size:18px;color:var(--muted);margin-left:4px;font-family:var(--font-ui);font-weight:600}
-.hero .lbl{color:var(--muted);font-size:13px}
-.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;white-space:nowrap}
-.chip.good{background:var(--good-bg);color:var(--good)}
-.chip.bad{background:var(--bad-bg);color:var(--bad)}
-.chip.flat{background:var(--surface-2);color:var(--muted)}
+/* cards */
+.card{background:var(--surface);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px}
+.card-h h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.015em}
+.acts{display:flex;gap:6px}
+.mini-btn{width:32px;height:32px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted)}
+.mini-btn svg{width:17px;height:17px}
+.link{color:var(--accent);font-weight:600;font-size:15px}
+.note{color:var(--muted);font-size:14px;margin:0;line-height:1.4}
+.lbl{font-size:13px;color:var(--muted);font-weight:500}
 
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.stat{background:var(--surface-2);border-radius:12px;padding:10px 8px;text-align:center;min-width:0}
-.stat .v{font-size:15px;font-weight:600}
-.stat .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
-.stat.good .v{color:var(--good)} .stat.bad .v{color:var(--bad)}
-@media (max-width:360px){.stats{grid-template-columns:repeat(2,1fr)}}
+.hero{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.hero .big{font-size:58px;font-weight:700;line-height:1;letter-spacing:-.03em}
+.hero .unit{font-size:20px;color:var(--muted);font-weight:600;margin-left:4px;font-family:var(--font-ui)}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:7px 12px;font-size:14px;font-weight:700;white-space:nowrap}
+.pill.good{background:var(--good-bg);color:var(--good)} .pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.flat{background:var(--surface-2);color:var(--muted)}
 
-/* chart */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{border-radius:14px;padding:12px 4px 10px;text-align:center;background:var(--surface-2);color:var(--muted);min-width:0}
+.tile .v{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.tile .k{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;margin-top:3px}
+.tile.good{background:var(--good-bg);color:var(--good)} .tile.bad{background:var(--bad-bg);color:var(--bad)}
+@media (max-width:350px){.tiles{grid-template-columns:repeat(2,1fr)}}
+
+.seg{display:flex;background:var(--surface-2);border-radius:10px;padding:2px;gap:2px}
+.seg button{flex:1;padding:7px 4px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-align:center}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .chart-wrap{position:relative;margin:0 -6px}
-canvas{display:block;width:100%;height:240px;touch-action:pan-y}
-.tip{position:absolute;top:4px;pointer-events:none;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;white-space:nowrap;transform:translateX(-50%)}
-.seg{display:flex;background:var(--surface-2);border-radius:12px;padding:3px;gap:2px}
-.seg button{flex:1;border:0;background:none;padding:7px 4px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.chart-wrap canvas{display:block;width:100%;height:240px;touch-action:pan-y}
+.tip{position:absolute;top:2px;pointer-events:none;background:var(--sheet);border:.5px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;white-space:nowrap;transform:translateX(-50%);box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
 
-/* progress */
+.pred{border-radius:14px;background:var(--surface-2);overflow:hidden}
+.pred-row{display:grid;grid-template-columns:1fr auto;gap:1px 12px;padding:12px 14px;border-bottom:.5px solid var(--line);align-items:center}
+.pred-row:last-child{border-bottom:0}
+.pred-row .t{font-weight:600;font-size:16px}
+.pred-row .r{font-size:13px;color:var(--muted)}
+.pred-row .d{grid-row:1/3;grid-column:2;text-align:right;font-weight:700;font-size:15px}
+.pred-row .d small{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.pred-row.hl{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.pred-row button.link{grid-row:1/3;grid-column:2}
+
 .bar{height:12px;background:var(--surface-2);border-radius:999px;overflow:hidden}
-.bar > span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+.bar > span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .5s}
 .row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
-.row .k{color:var(--muted);font-size:14px}
+.row .k{color:var(--muted);font-size:15px}
 .row .v{font-weight:600}
-.kv{display:flex;flex-direction:column;gap:8px}
+.kv{display:flex;flex-direction:column;gap:9px}
 .miles{display:flex;gap:6px;flex-wrap:wrap}
-.mile{font-size:12px;padding:4px 8px;border-radius:8px;background:var(--surface-2);color:var(--muted)}
+.mile{font-size:12px;font-weight:600;padding:5px 9px;border-radius:9px;background:var(--surface-2);color:var(--muted)}
 .mile.done{background:var(--good-bg);color:var(--good)}
-.mile.next{outline:1.5px solid var(--accent);color:var(--fg)}
-.note{color:var(--muted);font-size:14px;margin:0}
+.mile.next{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--fg)}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rbox{background:var(--surface-2);border-radius:14px;padding:11px 12px;min-width:0}
+.rbox .k{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.rbox .v{font-size:20px;font-weight:700;margin-top:2px}
+.rbox .s{font-size:12px;color:var(--muted)}
+.spark{display:block;width:100%;height:56px}
 
 /* logbook */
-.month{display:flex;flex-direction:column}
-.month h3{margin:0 0 4px;font-size:18px;font-weight:800}
-.lhead,.lrow{display:grid;grid-template-columns:52px 1fr 1fr 84px;gap:6px;align-items:center}
-.lhead{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:6px 0;border-bottom:1px solid var(--line)}
-.lhead span:not(:first-child),.lrow > :not(:first-child){text-align:right}
-.lrow{padding:10px 0;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;width:100%;cursor:pointer;text-align:left}
-.lrow:last-child{border-bottom:0}
+.month{padding:12px 0 2px;gap:0;overflow:hidden}
+.month h3{margin:0 16px 4px;font-size:20px;font-weight:700;letter-spacing:-.015em}
+.lgrid{display:grid;align-items:center;gap:6px}
+.lhead{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:6px 16px;border-bottom:.5px solid var(--line)}
+.lhead span:not(:first-child),.lrow .c{text-align:right}
+.swipe{position:relative;overflow:hidden;border-bottom:.5px solid var(--line)}
+.swipe:last-child{border-bottom:0}
+.swipe .del{position:absolute;top:0;right:0;bottom:0;width:88px;background:var(--bad);color:#fff;font-weight:700;font-size:15px;text-align:center}
+.lrow{position:relative;width:100%;padding:10px 16px;background:var(--surface);transition:transform .22s ease;touch-action:pan-y}
+.lrow.dragging{transition:none}
 .lrow .d{display:flex;flex-direction:column;line-height:1.1}
-.lrow .d b{font-size:17px} .lrow .d small{font-size:11px;color:var(--muted)}
-.lrow .w{font-size:16px} .lrow .t{font-size:14px;color:var(--muted)}
-.lrow .rate{justify-self:end}
-.lrow .memo{grid-column:1/-1;text-align:left !important;font-size:13px;color:var(--muted);margin-top:-2px}
+.lrow .d b{font-size:18px;font-weight:700} .lrow .d small{font-size:11px;color:var(--muted);font-weight:500}
+.lrow .w{font-size:17px;font-weight:600} .lrow .t{font-size:15px;color:var(--muted)}
+.lrow .memo{display:block;font-size:13px;color:var(--muted);margin-top:4px;text-align:left}
+.chip{display:inline-flex;align-items:center;gap:3px;border-radius:8px;padding:4px 8px;font-size:13px;font-weight:700;white-space:nowrap}
+.chip.good{background:var(--good-bg);color:var(--good)} .chip.bad{background:var(--bad-bg);color:var(--bad)} .chip.flat{background:var(--surface-2);color:var(--muted)}
 
-/* reports */
-.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.rbox{background:var(--surface-2);border-radius:12px;padding:10px 12px}
-.rbox .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.rbox .v{font-size:18px;font-weight:600;margin-top:2px}
-.rbox .s{font-size:12px;color:var(--muted)}
-.spark{width:100%;height:56px}
-
-/* settings */
-.set{display:flex;flex-direction:column}
-.set label,.set .item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
-.set > :last-child{border-bottom:0}
-.set .k{font-weight:600}
-.set .h{display:block;font-size:12.5px;color:var(--muted);font-weight:400}
-.set input,.set select{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:120px;text-align:right;font-family:var(--font-num);font-size:15px}
-.set select{font-family:var(--font-ui);width:auto}
-.tg{appearance:none;-webkit-appearance:none;width:51px !important;height:31px;border-radius:999px;background:var(--line) !important;border:0 !important;padding:0 !important;position:relative;cursor:pointer;flex:none;transition:background .2s}
-.tg::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
-.tg:checked{background:var(--good) !important}
+/* grouped lists (settings, sheets) */
+.group-t{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;margin:10px 16px -8px}
+.group-f{font-size:13px;color:var(--muted);margin:-6px 16px 0;line-height:1.4}
+.list{background:var(--surface);border-radius:14px;overflow:hidden}
+.sheet .list{background:var(--surface-2)}
+.item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;min-height:48px;border-bottom:.5px solid var(--line);width:100%}
+.item:last-child{border-bottom:0}
+.item .k{font-size:17px;min-width:0}
+.item .h{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.3}
+.item input[type="text"],.item input:not([type]),.item select,.item input[type="time"]{background:transparent;border:0;text-align:right;font-size:17px;color:var(--muted);width:110px;padding:4px 0;font-family:var(--font-num)}
+.item select{font-family:var(--font-ui);width:auto;direction:rtl}
+.item input:focus{color:var(--fg);outline:none}
+.item.action{color:var(--accent);justify-content:center;font-weight:500}
+.item.danger{color:var(--bad);justify-content:center;font-weight:500}
+.item .val{color:var(--muted);font-size:15px}
+.tg{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:999px;background:var(--line-strong);position:relative;cursor:pointer;flex:none;transition:background .2s;margin:0}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:transform .22s cubic-bezier(.3,1.3,.5,1)}
+.tg:checked{background:var(--good)}
 .tg:checked::after{transform:translateX(20px)}
-.set input[type="time"]{width:auto}
-.set input:disabled{opacity:.45}
-.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;background:var(--surface-2);color:var(--fg)}
+.swatches{display:flex;gap:12px;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:50%}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--fg)}
+.footer{text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0}
+
+/* buttons */
+.btn{border-radius:14px;padding:14px 16px;font-weight:600;font-size:17px;background:var(--surface-2);color:var(--fg);text-align:center}
 .btn.primary{background:var(--accent);color:var(--accent-ink)}
 .btn.danger{background:var(--bad-bg);color:var(--bad)}
-.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
 .btns .btn{flex:1 1 140px}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* empty */
-.empty{text-align:center;padding:40px 16px;display:flex;flex-direction:column;gap:14px;align-items:center}
-.empty h2{margin:0;font-size:22px;text-transform:none;letter-spacing:-.01em;color:var(--fg)}
-.empty p{margin:0;color:var(--muted);max-width:34ch}
+.empty{align-items:center;text-align:center;padding:36px 20px;gap:14px}
+.empty .ring{width:72px;height:72px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);display:grid;place-items:center}
+.empty .ring svg{width:34px;height:34px}
+.empty h2{margin:0;font-size:22px;font-weight:700}
+.empty p{margin:0;color:var(--muted);max-width:32ch;font-size:15px;line-height:1.4}
 
 /* tab bar */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px);
-  display:flex;gap:10px;align-items:center;justify-content:center;pointer-events:none}
-.tabbar{pointer-events:auto;display:flex;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--line);border-radius:22px;padding:5px;gap:2px;flex:1;max-width:420px}
-.tabbar button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border-radius:17px;font-size:11px;font-weight:700;cursor:pointer}
-.tabbar button svg{width:22px;height:22px}
-.tabbar button[aria-selected="true"]{background:var(--surface-2);color:var(--fg)}
-.fab{pointer-events:auto;width:60px;height:60px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);flex:none}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px);display:flex;gap:10px;align-items:center;justify-content:center;pointer-events:none}
+.tabbar{pointer-events:auto;display:flex;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border:.5px solid var(--line);border-radius:26px;padding:5px;gap:2px;flex:1;max-width:420px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.tabbar button{flex:1;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border-radius:21px;font-size:11px;font-weight:600;transition:background .2s,color .2s}
+.tabbar button svg{width:23px;height:23px}
+.tabbar button[aria-selected="true"]{background:var(--surface-2);color:var(--accent)}
+.fab{pointer-events:auto;width:62px;height:62px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.22);flex:none;transition:transform .15s}
+.fab:active{transform:scale(.92)}
 .fab svg{width:28px;height:28px}
 
-/* sheet */
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--surface);width:100%;max-width:520px;border-radius:24px 24px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;flex-direction:column;gap:14px;animation:up .22s ease-out}
-@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.sheet{animation:none}.bar>span{transition:none}}
-.sheet h2{margin:0;font-size:20px;font-weight:800}
+/* sheets */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:40;display:flex;align-items:flex-end;justify-content:center;animation:fade .22s}
+.scrim.closing{opacity:0;transition:opacity .22s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheet{background:var(--sheet);width:100%;max-width:560px;border-radius:14px 14px 0 0;padding:6px 16px calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;flex-direction:column;gap:14px;max-height:92%;overflow:auto;
+  animation:up .34s cubic-bezier(.2,.9,.3,1);transition:transform .25s ease}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--line-strong);margin:4px auto 0;flex:none}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sheet-h h2{margin:0;font-size:20px;font-weight:700}
 .field{display:flex;flex-direction:column;gap:6px}
 .field span{font-size:13px;color:var(--muted);font-weight:600}
-.field input,.field textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:17px;width:100%}
+.field input{background:var(--surface-2);border:0;border-radius:12px;padding:13px 14px;font-size:17px;width:100%}
 .wbig{display:flex;align-items:center;gap:10px}
-.wbig input{font-family:var(--font-num);font-size:34px;font-weight:600;text-align:center;padding:14px}
-.step{width:52px;height:52px;border-radius:14px;border:0;background:var(--surface-2);font-size:24px;font-weight:700;cursor:pointer;flex:none}
+.wbig input{font-family:var(--font-num);font-size:44px;font-weight:700;text-align:center;padding:12px;background:transparent;border:0;width:100%;min-width:0;outline:none}
+.step{width:56px;height:56px;border-radius:50%;background:var(--surface-2);font-size:26px;font-weight:600;flex:none;color:var(--accent);display:grid;place-items:center}
 .err{color:var(--bad);font-size:14px;margin:0}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 96px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30}
+.lay-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:.5px solid var(--line)}
+.lay-row:last-child{border-bottom:0}
+.lay-row .name{flex:1;font-size:17px}
+.lay-row .mv{width:34px;height:34px;border-radius:10px;background:var(--surface);display:grid;place-items:center;color:var(--accent)}
+.lay-row .mv:disabled{opacity:.3}
+.lay-row .mv svg{width:16px;height:16px}
+
+/* fullscreen chart */
+.full{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 14px);gap:12px;animation:fade .2s}
+.full .chart-wrap{flex:1;min-height:0;margin:0}
+.full .chart-wrap canvas{height:100%}
+
+/* celebration */
+.celebrate{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:24px;animation:fade .25s}
+.celebrate canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+.cel-card{position:relative;background:var(--sheet);border-radius:26px;padding:28px 22px 20px;text-align:center;max-width:340px;width:100%;display:flex;flex-direction:column;gap:10px;align-items:center;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.cel-ring{width:76px;height:76px;border-radius:50%;background:var(--good-bg);color:var(--good);display:grid;place-items:center}
+.cel-ring svg{width:38px;height:38px}
+.cel-card h2{margin:4px 0 0;font-size:24px;font-weight:800}
+.cel-card .num{font-size:40px;font-weight:700}
+.cel-card p{margin:0 0 6px;color:var(--muted);font-size:15px}
+.cel-card .btn{width:100%}
+@keyframes pop{from{transform:scale(.8);opacity:0}to{transform:none;opacity:1}}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 98px);background:var(--fg);color:var(--bg);padding:11px 16px;border-radius:14px;font-weight:600;font-size:15px;z-index:70;display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast button{color:var(--accent);font-weight:700}
+@media (prefers-reduced-motion:reduce){main.enter,.sheet,.cel-card,.scrim,.full,.celebrate{animation:none}.lrow,.bar>span,.tg::after{transition:none}}
 </style>
 </head>
 <body>
-<header class="top"><h1 id="title">Summary</h1><span class="sub" id="subtitle"></span></header>
+<div class="topbar" id="topbar"><div class="tb-inner"><span class="tb-title" id="tbTitle">Summary</span><div class="tb-actions" id="tbActions"></div></div></div>
 <main id="view"></main>
 
 <nav class="tabs">
   <div class="tabbar" role="tablist">
     <button role="tab" data-tab="summary" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>Summary</button>
-    <button role="tab" data-tab="reports" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15v-3M12 15V9M16 15v-5"/></svg>Reports</button>
-    <button role="tab" data-tab="logbook" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg>Logbook</button>
-    <button role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    <button role="tab" data-tab="reports" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M8.5 15.5v-3M12 15.5V8.5M15.5 15.5v-5"/></svg>Reports</button>
+    <button role="tab" data-tab="logbook" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 4.5h11a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8.5h6"/></svg>Logbook</button>
+    <button role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>Settings</button>
   </div>
   <button class="fab" id="addBtn" aria-label="Add weigh-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 </nav>
 
 <script>
 "use strict";
-/* ---------- storage ---------- */
+/* ---------- state ---------- */
 const KEY = "trendline-scale-v1";
-const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", step:null, chartRange:90, reportMode:"monthly",
-  healthRead:false, healthWrite:false, healthSince:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true };
-let S = { entries:[], settings:{...DEFAULTS} };
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.store);
+const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", body:"Body composition", records:"Records", bmi:"Body mass index" };
+const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", accent:"teal", step:null, chartRange:90, reportMode:"monthly",
+  healthRead:false, healthWrite:false, healthSince:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
+  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false };
+let S = { entries:[], settings:{...DEFAULTS} };
+
+function normalize(){
+  const s = S.settings, known = Object.keys(CARD_NAMES);
+  const cards = Array.isArray(s.cards) ? s.cards.filter(c => c && known.includes(c.id)) : [];
+  for (const id of known) if (!cards.find(c => c.id === id)) cards.push({ id, on:true });
+  s.cards = cards;
+  s.cols = { trend:true, rate:true, ...(s.cols || {}) };
+  if (!Array.isArray(s.healthIgnore)) s.healthIgnore = [];
+}
 function load(){
-  try{ const raw = (NATIVE && typeof window.__NATIVE_STATE__ === "string") ? window.__NATIVE_STATE__ : localStorage.getItem(KEY); if(raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries)?d.entries:[]; S.settings = {...DEFAULTS, ...(d.settings||{})}; } }catch(e){}
-  sortEntries();
+  try{
+    const raw = (NATIVE && typeof window.__NATIVE_STATE__ === "string") ? window.__NATIVE_STATE__ : localStorage.getItem(KEY);
+    if (raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries) ? d.entries : []; S.settings = {...DEFAULTS, ...(d.settings || {})}; }
+  }catch(e){}
+  normalize(); sortEntries();
 }
 function save(){
   const json = JSON.stringify(S);
   if (NATIVE){ try{ window.webkit.messageHandlers.store.postMessage(json); }catch(e){} }
-  try{ localStorage.setItem(KEY, json); }catch(e){ if (!NATIVE) toast("Could not save. Storage is full or blocked."); }
+  try{ localStorage.setItem(KEY, json); }catch(e){}
 }
-/* ---------- native bridge (iOS app) ---------- */
-let backupInfo = null;
-function nativeCmd(cmd, data){ if (!NATIVE || !window.webkit.messageHandlers.native) return; try{ window.webkit.messageHandlers.native.postMessage(Object.assign({cmd}, data||{})); }catch(e){} }
-window.__native = function(event, p){
-  p = p || {};
-  if (event === "health-samples") mergeHealth(p.samples || [], p.error);
-  else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab==="settings") renderSettings(); } else syncHealth(true); }
-  else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings › Trendline."); if (tab==="settings") renderSettings(); }
-  else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
-  else if (event === "foreground"){ syncHealth(false); scheduleReminder(); if (S.entries.length && tab !== "settings") render(); }
-  else if (event === "toast") toast(p.text || "");
-  else if (event === "state"){
-    try{
-      const d = JSON.parse(p.json);
-      if (d && Array.isArray(d.entries) && JSON.stringify(d) !== JSON.stringify(S)){
-        S.entries = d.entries; S.settings = {...DEFAULTS, ...(d.settings||{})}; sortEntries();
-        if (!document.querySelector(".scrim")) render();
-      }
-    }catch(e){}
-  }
-};
-function backupText(){
-  if (!backupInfo || !backupInfo.last) return "No automatic backup yet. One is saved the next time you change something.";
-  const d = new Date(backupInfo.last);
-  return `Last saved ${d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} at ${d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})} · ${backupInfo.count} weekly cop${backupInfo.count===1?"y":"ies"} kept`;
-}
-function syncHealth(full){
-  if (!NATIVE || !S.settings.healthRead) return;
-  const since = (!full && S.settings.healthSince) ? fromDnum(dnum(S.settings.healthSince) - 7) : "2000-01-01";
-  nativeCmd("healthRead", {since});
-}
-function mergeHealth(samples, error){
-  if (error) { toast("Could not read from Apple Health."); return; }
-  const ignore = new Set(S.settings.healthIgnore || []);
-  let added = 0, changed = 0;
-  for (const smp of samples){
-    if (!smp || !smp.date || ignore.has(smp.date)) continue;
-    const hasKg = smp.kg > 20 && smp.kg < 400;
-    let ex = S.entries.find(e => e.date === smp.date);
-    if (!ex){
-      if (!hasKg) continue;
-      ex = { id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }; S.entries.push(ex); added++;
-    } else if (hasKg && ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
-    if (smp.fat > 1 && smp.fat < 75 && ex.fat !== smp.fat){ ex.fat = smp.fat; changed++; }
-    if (smp.lean > 10 && smp.lean < 200 && ex.lean !== smp.lean){ ex.lean = smp.lean; changed++; }
-  }
-  S.settings.healthSince = todayStr();
-  sortEntries(); save();
-  if (added || changed){ render(); scheduleReminder(); toast(added ? `Added ${added} weigh-in${added>1?"s":""} from Apple Health` : "Updated weigh-ins from Apple Health"); }
-  else if (tab === "settings") renderSettings();
-}
-function scheduleReminder(){
-  if (!NATIVE) return;
-  const [h, m] = (S.settings.remindTime || "07:30").split(":").map(Number);
-  let body = "Step on the scale before breakfast.";
-  if (S.entries.length){ const r = computeTrend(); body = `Your trend is ${fw(r[r.length-1].trend)} ${U()}. Step on the scale before breakfast.`; }
-  nativeCmd("reminder", { enabled: !!S.settings.remind, hour: isNaN(h)?7:h, minute: isNaN(m)?30:m, weighedToday: S.entries.some(e => e.date === todayStr()), body });
-}
-
-/* ---------- body composition ---------- */
-function compSeries(field){
-  const a = S.settings.smooth; let t = null, prev = null;
-  return S.entries.filter(e => typeof e[field] === "number").map(e => {
-    const n = dnum(e.date);
-    if (t === null) t = e[field]; else { const f = 1 - Math.pow(1 - a, Math.max(1, n - prev)); t += f * (e[field] - t); }
-    prev = n; return { n, date: e.date, v: e[field], trend: t };
-  });
-}
-function compChange(rows, days){
-  if (rows.length < 2) return null;
-  const last = rows[rows.length-1]; const target = last.n - days;
-  let base = null; for (const r of rows){ if (r.n <= target) base = r; }
-  if (!base){ if (last.n - rows[0].n < days/2) return null; base = rows[0]; }
-  return last.trend - base.trend;
-}
-
-function sortEntries(){ S.entries.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
-if (navigator.storage && navigator.storage.persist) { try{ navigator.storage.persist(); }catch(e){} }
+function sortEntries(){ S.entries.sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
+function nativeCmd(cmd, data){ if (!NATIVE || !window.webkit.messageHandlers.native) return; try{ window.webkit.messageHandlers.native.postMessage(Object.assign({cmd}, data || {})); }catch(e){} }
+function haptic(kind){ if (S.settings.haptics !== false) nativeCmd("haptic", { kind }); }
 
 /* ---------- dates & units ---------- */
 const DAY = 864e5;
@@ -294,547 +297,907 @@ const fromDnum = n => { const d = new Date(n*DAY); return `${d.getUTCFullYear()}
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONF = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const parts = s => { const [y,m,d] = s.split("-").map(Number); return {y,m,d,wd:new Date(Date.UTC(y,m-1,d)).getUTCDay()}; };
+const parts = s => { const [y,m,d] = s.split("-").map(Number); return { y, m, d, wd: new Date(Date.UTC(y,m-1,d)).getUTCDay() }; };
 const fmtDate = s => { const p = parts(s); return `${p.d} ${MON[p.m-1]} ${p.y}`; };
 const LB = 2.2046226218;
 const U = () => S.settings.unit;
-const toU = kg => U()==="lb" ? kg*LB : kg;
-const fromU = v => U()==="lb" ? v/LB : v;
-const fw = kg => kg==null||isNaN(kg) ? "—" : toU(kg).toFixed(1);
-const fd = kg => { if(kg==null||isNaN(kg)) return "—"; const v = toU(kg); return (v>0?"+":v<0?"−":"±") + Math.abs(v).toFixed(1); };
+const toU = kg => U() === "lb" ? kg*LB : kg;
+const fromU = v => U() === "lb" ? v/LB : v;
+const fw = kg => kg == null || isNaN(kg) ? "—" : toU(kg).toFixed(1);
+const fd = kg => { if (kg == null || isNaN(kg)) return "—"; const v = toU(kg); return (v > 0 ? "+" : v < 0 ? "−" : "±") + Math.abs(v).toFixed(1); };
+const FONT = getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim() || "system-ui";
+const NUMFONT = getComputedStyle(document.documentElement).getPropertyValue("--font-num").trim() || "system-ui";
 
 /* ---------- the math ---------- */
 // Exponentially smoothed trend that respects gaps between weigh-ins.
 function computeTrend(){
-  const a = S.settings.smooth;
-  let t = null, prev = null;
+  const a = S.settings.smooth; let t = null, prev = null;
   return S.entries.map(e => {
     const n = dnum(e.date);
-    if (t === null) t = e.kg;
-    else { const days = Math.max(1, n - prev); const f = 1 - Math.pow(1 - a, days); t = t + f * (e.kg - t); }
-    prev = n;
-    return { ...e, n, trend: t };
+    if (t === null) t = e.kg; else { const f = 1 - Math.pow(1 - a, Math.max(1, n - prev)); t += f * (e.kg - t); }
+    prev = n; return { ...e, n, trend: t };
   });
 }
-// trend value at an arbitrary day, interpolated between weigh-ins
 function trendAt(rows, n){
   if (!rows.length || n < rows[0].n) return null;
   if (n >= rows[rows.length-1].n) return rows[rows.length-1].trend;
-  for (let i=1;i<rows.length;i++){
-    if (rows[i].n >= n){ const A = rows[i-1], B = rows[i]; const f = (n - A.n)/((B.n - A.n)||1); return A.trend + f*(B.trend - A.trend); }
-  }
+  for (let i = 1; i < rows.length; i++) if (rows[i].n >= n){ const A = rows[i-1], B = rows[i]; return A.trend + (n - A.n)/((B.n - A.n) || 1)*(B.trend - A.trend); }
   return null;
 }
 function weeklyRateAt(rows, i){
-  const r = rows[i]; const back = trendAt(rows, r.n - 7);
-  if (back === null || i === 0) return null;
-  // ignore when the previous weigh-in is far away; the number would be meaningless
-  if (r.n - rows[i-1].n > 21) return null;
-  return r.trend - back;
+  const r = rows[i]; if (i === 0 || r.n - rows[i-1].n > 21) return null;
+  const back = trendAt(rows, r.n - 7); return back === null ? null : r.trend - back;
 }
-// slope (kg/day) of trend over last `days` days via least squares
+// least-squares slope (kg/day) of the trend over the last `days` days
 function slope(rows, days){
   if (rows.length < 2) return null;
   const end = rows[rows.length-1].n;
   const pts = rows.filter(r => r.n >= end - days);
   if (pts.length < 2 || pts[pts.length-1].n - pts[0].n < 6) return null;
-  const mx = pts.reduce((s,p)=>s+p.n,0)/pts.length, my = pts.reduce((s,p)=>s+p.trend,0)/pts.length;
-  let num=0, den=0; for (const p of pts){ num += (p.n-mx)*(p.trend-my); den += (p.n-mx)**2; }
+  const mx = pts.reduce((s,p) => s + p.n, 0)/pts.length, my = pts.reduce((s,p) => s + p.trend, 0)/pts.length;
+  let num = 0, den = 0; for (const p of pts){ num += (p.n-mx)*(p.trend-my); den += (p.n-mx)**2; }
   return den ? num/den : null;
 }
-function goalDir(){ const g = S.settings.goal, st = startWeight(); if (g==null || st==null) return -1; return g < st ? -1 : 1; }
 function startWeight(){ return S.settings.start ?? (S.entries[0] ? S.entries[0].kg : null); }
-// tone of a change: "good" if it moves toward the goal (losing by default)
-function tone(delta){ if (delta==null || Math.abs(delta) < 0.05) return "flat"; return Math.sign(delta) === goalDir() ? "good" : "bad"; }
-const arrow = d => d==null||Math.abs(d)<0.05 ? "→" : d>0 ? "↑" : "↓";
+function goalDir(){ const g = S.settings.goal, st = startWeight(); if (g == null || st == null) return -1; return g < st ? -1 : 1; }
+function tone(delta){ if (delta == null || Math.abs(delta) < 0.05) return "flat"; return Math.sign(delta) === goalDir() ? "good" : "bad"; }
+const arrow = d => d == null || Math.abs(d) < 0.05 ? "→" : d > 0 ? "↑" : "↓";
+function milestones(){
+  const g = S.settings.goal, st = startWeight(); if (g == null || st == null) return [];
+  const step = S.settings.step ?? (U() === "lb" ? 5/LB : 2); const dir = Math.sign(g - st) || -1; const out = [];
+  for (let w = st + dir*step; (dir < 0 ? w > g + 0.01 : w < g - 0.01) && out.length < 200; w += dir*step) out.push(Math.round(w*1000)/1000);
+  out.push(g); return out;
+}
+function compSeries(field){
+  const a = S.settings.smooth; let t = null, prev = null;
+  return S.entries.filter(e => typeof e[field] === "number").map(e => {
+    const n = dnum(e.date);
+    if (t === null) t = e[field]; else { const f = 1 - Math.pow(1 - a, Math.max(1, n - prev)); t += f * (e[field] - t); }
+    prev = n; return { n, date: e.date, v: e[field], trend: t };
+  });
+}
+function compChange(rows, days){
+  if (rows.length < 2) return null;
+  const last = rows[rows.length-1], target = last.n - days; let base = null;
+  for (const r of rows) if (r.n <= target) base = r;
+  if (!base){ if (last.n - rows[0].n < days/2) return null; base = rows[0]; }
+  return last.trend - base.trend;
+}
+function etaFor(perDay, left, lastN){
+  if (Math.abs(left) < 0.05) return { text:"Reached" };
+  if (!perDay || Math.sign(perDay) !== -Math.sign(left) || Math.abs(perDay) < 0.0005) return { text:"Not on pace", off:true };
+  const d = Math.round(Math.abs(left/perDay));
+  return d > 3650 ? { text:"Over 10 years", off:true } : { text: fmtDate(fromDnum(lastN + d)), sub: d < 60 ? `${d} days` : `${Math.round(d/7)} weeks` };
+}
 
-/* ---------- rendering helpers ---------- */
+/* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const view = $("#view");
-const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let tab = "summary";
-try{ const t = localStorage.getItem(KEY+":tab"); if (t) tab = t; }catch(e){}
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const ICON = {
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4"/></svg>',
+  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
+  expand:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>',
+  close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  layout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/></svg>',
+  cols:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M9.5 4v16M14.5 4v16"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  scale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 9.5a5 5 0 0 1 8 0M12 9.5l1.5-2"/></svg>'
+};
 
+/* ---------- theme ---------- */
+const ACCENTS = { teal:["#5cc8d6","#0f8b9a"], blue:["#5aa9ff","#1d6fd8"], indigo:["#9a96ff","#5a52d6"], green:["#4fd496","#168a52"], orange:["#ffad5c","#c2660f"], pink:["#ff86b3","#c63a71"] };
+function isDark(){ const t = S.settings.theme; return t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches); }
 function applyTheme(){
-  const t = S.settings.theme;
-  if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t);
+  const root = document.documentElement, t = S.settings.theme;
+  if (t === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+  const a = ACCENTS[S.settings.accent] || ACCENTS.teal, dark = isDark();
+  root.style.setProperty("--accent", dark ? a[0] : a[1]);
+  root.style.setProperty("--accent-ink", dark ? "#0b1216" : "#ffffff");
+  nativeCmd("theme", { mode: t });
 }
+
+/* ---------- native bridge ---------- */
+let backupInfo = null;
+window.__native = function(event, p){
+  p = p || {};
+  if (event === "health-samples") mergeHealth(p.samples || [], p.error);
+  else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab === "settings") render(); } else syncHealth(true); }
+  else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings."); if (tab === "settings") render(); }
+  else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
+  else if (event === "foreground"){ syncHealth(false); scheduleReminder(); if (tab !== "settings") render(); }
+  else if (event === "toast") toast(p.text || "");
+  else if (event === "lock-result"){
+    if (p.ok){ S.settings.lock = !!p.enabled; save(); toast(p.enabled ? "Face ID lock is on" : "Face ID lock is off"); haptic("success"); }
+    else toast(p.reason === "unavailable" ? "Set up Face ID or a passcode on this iPhone first." : "Face ID was not confirmed.");
+    if (tab === "settings") render();
+  }
+  else if (event === "state"){
+    try{
+      const d = JSON.parse(p.json);
+      if (d && Array.isArray(d.entries) && JSON.stringify(d) !== JSON.stringify(S)){
+        S.entries = d.entries; S.settings = {...DEFAULTS, ...(d.settings || {})}; normalize(); sortEntries();
+        if (!document.querySelector(".scrim")) render();
+        checkCelebrate(false);
+      }
+    }catch(e){}
+  }
+};
+function backupText(){
+  if (!backupInfo || !backupInfo.last) return "No automatic backup yet. One is saved the next time something changes.";
+  const d = new Date(backupInfo.last);
+  return `Last saved ${d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}, ${d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})} · ${backupInfo.count} weekly cop${backupInfo.count === 1 ? "y" : "ies"} kept`;
+}
+function syncHealth(full){
+  if (!NATIVE || !S.settings.healthRead) return;
+  const since = (!full && S.settings.healthSince) ? fromDnum(dnum(S.settings.healthSince) - 7) : "2000-01-01";
+  nativeCmd("healthRead", { since });
+}
+function mergeHealth(samples, error){
+  if (error){ toast("Could not read from Apple Health."); return; }
+  const ignore = new Set(S.settings.healthIgnore || []);
+  let added = 0, changed = 0;
+  for (const smp of samples){
+    if (!smp || !smp.date || ignore.has(smp.date)) continue;
+    const hasKg = smp.kg > 20 && smp.kg < 400;
+    let ex = S.entries.find(e => e.date === smp.date);
+    if (!ex){ if (!hasKg) continue; ex = { id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }; S.entries.push(ex); added++; }
+    else if (hasKg && ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
+    if (smp.fat > 1 && smp.fat < 75 && ex.fat !== smp.fat){ ex.fat = smp.fat; changed++; }
+    if (smp.lean > 10 && smp.lean < 200 && ex.lean !== smp.lean){ ex.lean = smp.lean; changed++; }
+  }
+  S.settings.healthSince = todayStr();
+  sortEntries(); save();
+  if (added || changed){
+    render(); scheduleReminder();
+    if (added) toast(`Added ${added} weigh-in${added > 1 ? "s" : ""} from Apple Health`);
+    checkCelebrate(added > 3);
+  } else if (tab === "settings") render();
+}
+function scheduleReminder(){
+  if (!NATIVE) return;
+  const [h, m] = (S.settings.remindTime || "07:30").split(":").map(Number);
+  let body = "Step on the scale before breakfast.";
+  if (S.entries.length){ const r = computeTrend(); body = `Your trend is ${fw(r[r.length-1].trend)} ${U()}. Step on the scale before breakfast.`; }
+  nativeCmd("reminder", { enabled: !!S.settings.remind, hour: isNaN(h) ? 7 : h, minute: isNaN(m) ? 30 : m, weighedToday: S.entries.some(e => e.date === todayStr()), body });
+}
+function connectHealth(){
+  S.settings.healthRead = true; save();
+  nativeCmd("healthAuthorize", { write: S.settings.healthWrite });
+  if (S.settings.notifyWeigh !== false) nativeCmd("notifyAuth");
+  toast("Checking Apple Health…");
+}
+
+/* ---------- celebrations ---------- */
+function reachedMilestones(){
+  if (!S.entries.length) return [];
+  const rows = computeTrend(), t = rows[rows.length-1].trend, dir = goalDir();
+  return milestones().filter(m => dir < 0 ? t <= m + 0.001 : t >= m - 0.001);
+}
+function checkCelebrate(silent){
+  if (S.settings.goal == null || !S.entries.length) return;
+  const reached = reachedMilestones();
+  const done = new Set((S.settings.celebrated || []).map(x => Number(x).toFixed(2)));
+  const fresh = reached.filter(m => !done.has(m.toFixed(2)));
+  if (S.settings.celebrated == null) silent = true;
+  if (!fresh.length){ if (S.settings.celebrated == null){ S.settings.celebrated = []; save(); } return; }
+  S.settings.celebrated = [...(S.settings.celebrated || []), ...fresh]; save();
+  if (silent) return;
+  const best = fresh[fresh.length-1], isGoal = Math.abs(best - S.settings.goal) < 0.01;
+  showCelebration(isGoal, best);
+}
+function resetCelebrations(){ S.settings.celebrated = null; checkCelebrate(true); }
+function showCelebration(isGoal, value){
+  haptic("success");
+  const el = document.createElement("div"); el.className = "celebrate";
+  const dir = goalDir() < 0 ? "below" : "above";
+  el.innerHTML = `<canvas></canvas><div class="cel-card" role="dialog" aria-modal="true">
+    <div class="cel-ring">${isGoal ? ICON.flag : ICON.check}</div>
+    <h2>${isGoal ? "Goal reached" : "Milestone reached"}</h2>
+    <div class="num">${fw(value)} <span style="font-size:20px;color:var(--muted)">${U()}</span></div>
+    <p>${isGoal ? "Your trend weight hit your goal. Time to set the next one." : `Your trend weight is now ${dir} ${fw(value)} ${U()}.`}</p>
+    <button class="btn primary" id="celOk">${isGoal ? "Done" : "Keep going"}</button></div>`;
+  document.body.appendChild(el);
+  const close = () => { el.remove(); };
+  el.querySelector("#celOk").onclick = close;
+  el.addEventListener("click", ev => { if (ev.target === el) close(); });
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv = el.querySelector("canvas"), dpr = devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr, dpr);
+  const cols = [css("--accent"), css("--good"), css("--warn"), "#ffffff", css("--bad")];
+  const ps = Array.from({length: 140}, () => ({ x: W/2 + (Math.random()-.5)*80, y: H*0.38, vx: (Math.random()-.5)*11, vy: -Math.random()*13 - 4, s: 5 + Math.random()*6, r: Math.random()*6, vr: (Math.random()-.5)*0.3, c: cols[(Math.random()*cols.length)|0] }));
+  let frames = 0;
+  (function tick(){
+    if (!el.isConnected || frames++ > 220) return;
+    c.clearRect(0, 0, W, H);
+    for (const p of ps){ p.vy += 0.32; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      c.save(); c.translate(p.x, p.y); c.rotate(p.r); c.fillStyle = p.c; c.globalAlpha = Math.max(0, 1 - frames/220); c.fillRect(-p.s/2, -p.s/4, p.s, p.s/2); c.restore(); }
+    requestAnimationFrame(tick);
+  })();
+}
+
+/* ---------- tabs, top bar ---------- */
+const TITLES = { summary:"Summary", reports:"Reports", logbook:"Logbook", settings:"Settings" };
+let tab = "summary";
+try{ const t = localStorage.getItem(KEY + ":tab"); if (TITLES[t]) tab = t; }catch(e){}
 function setTab(t){
-  tab = t; try{ localStorage.setItem(KEY+":tab", t); }catch(e){}
-  document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab===t)));
-  render(); window.scrollTo(0,0);
+  if (t === tab){ window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  tab = t; try{ localStorage.setItem(KEY + ":tab", t); }catch(e){}
+  haptic("selection");
+  document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  window.scrollTo(0, 0);
+  render(true);
 }
 document.querySelectorAll(".tabbar button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
-$("#addBtn").addEventListener("click", () => openEntry());
+$("#addBtn").addEventListener("click", () => { haptic("light"); openEntry(); });
+const topbar = $("#topbar");
+window.addEventListener("scroll", () => topbar.classList.toggle("scrolled", window.scrollY > 34), { passive:true });
 
-function render(){
-  const titles = {summary:"Summary", reports:"Reports", logbook:"Logbook", settings:"Settings"};
-  $("#title").textContent = titles[tab];
-  $("#subtitle").textContent = S.entries.length ? `${S.entries.length} weigh-in${S.entries.length>1?"s":""}` : "";
-  if (tab === "settings") return renderSettings();
-  if (!S.entries.length) return renderEmpty();
-  if (tab === "summary") renderSummary();
-  else if (tab === "reports") renderReports();
-  else renderLogbook();
+function render(animate){
+  closeSwipe();
+  $("#tbTitle").textContent = TITLES[tab];
+  const acts = $("#tbActions"); acts.innerHTML = "";
+  if (tab === "summary" && S.entries.length){ acts.innerHTML = `<button class="icon-btn" id="tbLayout" aria-label="Arrange cards">${ICON.layout}</button>`; $("#tbLayout").onclick = openLayout; }
+  if (tab === "logbook" && S.entries.length){ acts.innerHTML = `<button class="icon-btn" id="tbCols" aria-label="Choose columns">${ICON.cols}</button>`; $("#tbCols").onclick = openColumns; }
+  const count = S.entries.length ? `<small>${S.entries.length} weigh-in${S.entries.length > 1 ? "s" : ""}</small>` : "";
+  const head = `<h1 class="large">${TITLES[tab]}${tab !== "settings" ? count : ""}</h1>`;
+  if (tab === "settings") renderSettings(head);
+  else if (!S.entries.length) renderEmpty(head);
+  else if (tab === "summary") renderSummary(head);
+  else if (tab === "reports") renderReports(head);
+  else renderLogbook(head);
+  if (animate){ view.classList.remove("enter"); void view.offsetWidth; view.classList.add("enter"); }
+  topbar.classList.toggle("scrolled", window.scrollY > 34);
 }
 
-function renderEmpty(){
-  view.innerHTML = `<section class="card empty">
-    <h2>No weigh-ins yet</h2>
-    <p>Log your weight each morning. The app smooths out daily water swings and shows the trend underneath.</p>
-    <div class="btns" style="width:100%;max-width:340px">
-      <button class="btn primary" id="e1">Add first weigh-in</button>
-      <button class="btn" id="e2">Import a file</button>
+function renderEmpty(head){
+  view.innerHTML = head + `<section class="card empty">
+    <div class="ring">${ICON.scale}</div>
+    <h2>Start your trend</h2>
+    <p>Weigh in each morning. Trendline smooths out daily water swings and shows the direction you're really heading.</p>
+    <div class="btns" style="width:100%;max-width:340px;flex-direction:column">
+      <button class="btn primary" id="e1">Add a weigh-in</button>
+      ${NATIVE ? `<button class="btn" id="e2">Connect Apple Health</button>` : ""}
     </div>
-    <button class="link" id="e3">Try with demo data</button>
+    <button class="link" id="e4">Restore a backup</button>
+    <button class="link" id="e3" style="color:var(--muted);font-weight:500">Try with demo data</button>
   </section>`;
   $("#e1").onclick = () => openEntry();
-  $("#e2").onclick = () => pickImport();
+  const e2 = $("#e2"); if (e2) e2.onclick = connectHealth;
   $("#e3").onclick = loadDemo;
+  $("#e4").onclick = pickRestore;
 }
 
 /* ---------- summary ---------- */
-function renderSummary(){
-  const rows = computeTrend(); const last = rows[rows.length-1];
-  const s7 = slope(rows, 28); const wk = s7==null?null:s7*7;
-  const ago = dnum(todayStr()) - last.n;
-  const change = n => { const b = trendAt(rows, last.n - n); return b==null?null:last.trend-b; };
-  const ch = [["7 days",change(7)],["30 days",change(30)],["90 days",change(90)],["All time",last.trend-rows[0].trend]];
-  const hi = rows.reduce((m,r)=>r.kg>m.kg?r:m), lo = rows.reduce((m,r)=>r.kg<m.kg?r:m);
-  const S0 = S.settings;
-
-  let html = `<section class="card">
-    <div class="hero">
-      <div><div class="lbl">Trend weight</div><div><span class="big num">${fw(last.trend)}</span><span class="unit">${U()}</span></div></div>
-      <div style="text-align:right">${wk==null?`<span class="chip flat">Need more data</span>`:`<span class="chip ${tone(wk)}">${arrow(wk)} ${Math.abs(toU(wk)).toFixed(2)} ${U()}/wk</span>`}</div>
-      <div class="lbl">Last weigh-in <span class="num">${fw(last.kg)}</span> · ${ago===0?"today":ago===1?"yesterday":ago+" days ago"}</div>
-    </div>
-    <div class="stats">${ch.map(([k,v])=>`<div class="stat ${tone(v)}"><div class="v num">${fd(v)}</div><div class="k">${k}</div></div>`).join("")}</div>
-  </section>`;
-
-  html += `<section class="card"><h2>Weight chart</h2>
-    <div class="seg" id="rng">${[[30,"30D"],[90,"90D"],[365,"1Y"],[0,"All"]].map(([v,l])=>`<button data-r="${v}" aria-pressed="${S0.chartRange===v}">${l}</button>`).join("")}</div>
-    <div class="chart-wrap"><canvas id="chart" aria-label="Weight chart"></canvas><div class="tip" id="tip" hidden></div></div>
-    <div class="legend"><span><i style="background:var(--accent)"></i>Trend</span><span><i style="background:var(--muted);height:6px;width:6px;border-radius:50%"></i>Weigh-in</span>${S0.goal!=null?`<span><i style="background:var(--warn)"></i>Goal</span>`:""}</div>
-  </section>`;
-
-  // goal
-  html += `<section class="card"><h2>Goal progress <button class="link" id="editGoal">${S0.goal==null?"Set goal":"Edit"}</button></h2>`;
-  if (S0.goal == null){
-    html += `<p class="note">Set a goal weight to see your progress, milestones and a predicted finish date.</p>`;
-  } else {
-    const st = startWeight(), g = S0.goal, tot = st - g;
+function renderSummary(head){
+  const rows = computeTrend();
+  let html = head;
+  for (const c of S.settings.cards) if (c.on) html += (CARDS[c.id] || (() => ""))(rows);
+  view.innerHTML = html;
+  bindSummary(rows);
+}
+const CARDS = {
+  trend(rows){
+    const last = rows[rows.length-1], s = slope(rows, 28), wk = s == null ? null : s*7;
+    const ago = dnum(todayStr()) - last.n;
+    const change = n => { const b = trendAt(rows, last.n - n); return b == null ? null : last.trend - b; };
+    const ch = [["7 days", change(7)], ["30 days", change(30)], ["90 days", change(90)], ["All time", last.trend - rows[0].trend]];
+    return `<section class="card">
+      <div class="hero">
+        <div><div class="lbl">Trend weight</div><div><span class="big num">${fw(last.trend)}</span><span class="unit">${U()}</span></div></div>
+        ${wk == null ? `<span class="pill flat">Building trend</span>` : `<span class="pill ${tone(wk)} num">${arrow(wk)} ${Math.abs(toU(wk)).toFixed(2)} ${U()}/wk</span>`}
+      </div>
+      <div class="lbl">Last weigh-in <b class="num" style="color:var(--fg)">${fw(last.kg)}</b> · ${ago <= 0 ? "today" : ago === 1 ? "yesterday" : ago + " days ago"}</div>
+      <div class="tiles">${ch.map(([k,v]) => `<div class="tile ${tone(v)}"><div class="v num">${fd(v)}</div><div class="k">${k}</div></div>`).join("")}</div>
+    </section>`;
+  },
+  chart(){
+    const R = S.settings.chartRange;
+    return `<section class="card"><div class="card-h"><h2>Weight chart</h2><div class="acts">
+        <button class="mini-btn" id="chShare" aria-label="Share chart">${ICON.share}</button>
+        <button class="mini-btn" id="chFull" aria-label="Full screen">${ICON.expand}</button></div></div>
+      <div class="seg" id="rng">${RANGES.map(([v,l]) => `<button data-r="${v}" aria-pressed="${R === v}">${l}</button>`).join("")}</div>
+      <div class="chart-wrap"><canvas id="chart" aria-label="Weight chart"></canvas><div class="tip" id="tip" hidden></div></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Trend</span><span><i style="background:var(--fg);height:6px;width:6px;border-radius:50%"></i>Weigh-in</span>${S.settings.goal != null ? `<span><i style="background:var(--warn)"></i>Goal</span>` : ""}</div>
+    </section>`;
+  },
+  predict(rows){
+    const last = rows[rows.length-1], g = S.settings.goal;
+    const cur = slope(rows, 28);
+    const sinceN = S.settings.goalSince ? dnum(S.settings.goalSince) : rows[0].n;
+    let overall = null; const pts = rows.filter(r => r.n >= sinceN);
+    if (pts.length >= 2 && last.n - pts[0].n >= 7) overall = (last.trend - pts[0].trend)/(last.n - pts[0].n);
+    const commit = S.settings.commit ? S.settings.commit/7 * goalDir() : null;
+    const left = g == null ? null : last.trend - g;
+    const row = (title, perDay, hl, empty) => {
+      const rate = perDay == null ? empty : `${arrow(perDay*7)} ${Math.abs(toU(perDay*7)).toFixed(2)} ${U()} per week`;
+      let right = "";
+      if (left != null && perDay != null){ const e = etaFor(perDay, left, last.n); right = `<span class="d" style="${e.off ? "color:var(--muted)" : ""}">${e.text}${e.sub ? `<small>${e.sub}</small>` : ""}</span>`; }
+      return `<div class="pred-row ${hl ? "hl" : ""}"><span class="t">${title}</span><span class="r num">${rate}</span>${right}</div>`;
+    };
+    return `<section class="card"><div class="card-h"><h2>Predictions</h2><div class="acts"><button class="mini-btn" id="prSet" aria-label="Set weekly commitment">${ICON.gear}</button></div></div>
+      <div class="pred">
+        ${commit == null
+          ? `<div class="pred-row hl"><span class="t">Commitment</span><span class="r">Set the weekly pace you're aiming for</span><button class="link" id="prSet2">Set</button></div>`
+          : row("Commitment", commit, true, "")}
+        ${row("Current rate", cur, false, "Needs a week of weigh-ins")}
+        ${row("Overall rate", overall, false, "Needs a week of weigh-ins")}
+      </div>
+      <p class="note" style="font-size:13px">${g == null ? "Set a goal weight to see finish dates." : `Dates show when your trend reaches ${fw(g)} ${U()}. Current rate uses the last 4 weeks${S.settings.goalSince ? `, overall rate runs from ${fmtDate(S.settings.goalSince)}` : ""}.`}</p>
+    </section>`;
+  },
+  goal(rows){
+    const last = rows[rows.length-1], g = S.settings.goal;
+    let html = `<section class="card"><div class="card-h"><h2>Goal progress</h2><div class="acts"><button class="mini-btn" id="glSet" aria-label="Edit goal">${ICON.gear}</button></div></div>`;
+    if (g == null) return html + `<p class="note">Set a goal weight to track progress and milestones.</p><button class="btn" id="glSet2">Set a goal</button></section>`;
+    const st = startWeight(), tot = st - g;
     const done = tot === 0 ? 1 : Math.max(0, Math.min(1, (st - last.trend)/tot));
-    const left = last.trend - g;
-    const perDay = s7;
-    let eta = "—";
-    if (Math.abs(left) < 0.05) eta = "Reached";
-    else if (perDay && Math.sign(perDay) === -Math.sign(left) && Math.abs(perDay) > 0.001){
-      const days = Math.round(Math.abs(left/perDay)); eta = days > 3650 ? "Over 10 years" : fmtDate(fromDnum(last.n + days));
-    }
-    const step = S0.step ?? (U()==="lb" ? 5/LB : 2);
-    const miles = []; const dir = Math.sign(g - st) || -1;
-    for (let w = st + dir*step; dir<0 ? w > g + 0.01 : w < g - 0.01; w += dir*step) miles.push(w);
-    miles.push(g);
-    const nextIdx = miles.findIndex(m => dir<0 ? last.trend > m : last.trend < m);
-    html += `<div class="row"><span class="num" style="font-weight:600">${fw(st)}</span><span class="num" style="font-size:22px;font-weight:600">${Math.round(done*100)}%</span><span class="num" style="font-weight:600">${fw(g)}</span></div>
+    const left = last.trend - g, miles = milestones(), dir = goalDir();
+    const nextIdx = miles.findIndex(m => dir < 0 ? last.trend > m : last.trend < m);
+    return html + `<div class="row"><span class="num" style="font-weight:600">${fw(st)}</span><span class="num" style="font-size:24px;font-weight:700">${Math.round(done*100)}%</span><span class="num" style="font-weight:600">${fw(g)}</span></div>
       <div class="bar" role="progressbar" aria-valuenow="${Math.round(done*100)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${done*100}%"></span></div>
       <div class="kv">
-        <div class="row"><span class="k">To go</span><span class="v num">${Math.abs(left)<0.05?"0.0":Math.abs(toU(left)).toFixed(1)} ${U()}</span></div>
-        <div class="row"><span class="k">Done so far</span><span class="v num">${Math.abs(toU(st-last.trend)).toFixed(1)} ${U()}</span></div>
-        <div class="row"><span class="k">Predicted finish</span><span class="v">${eta}</span></div>
+        <div class="row"><span class="k">To go</span><span class="v num">${Math.abs(left) < 0.05 ? "0.0" : Math.abs(toU(left)).toFixed(1)} ${U()}</span></div>
+        <div class="row"><span class="k">Done so far</span><span class="v num">${Math.abs(toU(st - last.trend)).toFixed(1)} ${U()}</span></div>
+        <div class="row"><span class="k">Next milestone</span><span class="v num">${nextIdx === -1 ? "All done" : fw(miles[nextIdx]) + " " + U()}</span></div>
       </div>
-      <div class="miles">${miles.slice(0,12).map((m,i)=>`<span class="mile num ${nextIdx===-1||i<nextIdx?"done":i===nextIdx?"next":""}">${fw(m)}</span>`).join("")}${miles.length>12?`<span class="mile">+${miles.length-12} more</span>`:""}</div>`;
-  }
-  html += `</section>`;
-
-  // records & BMI
-  const fatRows = compSeries("fat"), leanRows = compSeries("lean");
-  if (fatRows.length || leanRows.length){
+      <div class="miles">${miles.slice(0, 14).map((m, i) => `<span class="mile num ${nextIdx === -1 || i < nextIdx ? "done" : i === nextIdx ? "next" : ""}">${fw(m)}</span>`).join("")}${miles.length > 14 ? `<span class="mile">+${miles.length - 14}</span>` : ""}</div>
+    </section>`;
+  },
+  body(){
+    const fatRows = compSeries("fat"), leanRows = compSeries("lean");
+    if (!fatRows.length && !leanRows.length) return "";
     const fl = fatRows[fatRows.length-1], ll = leanRows[leanRows.length-1];
     const fc = compChange(fatRows, 30), lc = compChange(leanRows, 30);
-    const fTone = fc==null||Math.abs(fc)<0.05 ? "flat" : fc < 0 ? "good" : "bad";
-    const lTone = lc==null||Math.abs(lc)<0.05 ? "flat" : lc > 0 ? "good" : "bad";
-    html += `<section class="card"><h2>Body composition</h2>
+    const fT = fc == null || Math.abs(fc) < 0.05 ? "muted" : fc < 0 ? "good" : "bad";
+    const lT = lc == null || Math.abs(lc) < 0.05 ? "muted" : lc > 0 ? "good" : "bad";
+    return `<section class="card"><div class="card-h"><h2>Body composition</h2></div>
       <div class="rgrid">
-        <div class="rbox"><div class="k">Body fat</div><div class="v num">${fl?fl.trend.toFixed(1)+"%":"—"}</div>
-          <div class="s">${fc==null?"30-day change after more readings":`<span style="color:var(--${fTone==="flat"?"muted":fTone})">${arrow(fc)} ${Math.abs(fc).toFixed(1)} pts</span> in 30 days`}</div></div>
-        <div class="rbox"><div class="k">Lean mass</div><div class="v num">${ll?fw(ll.trend)+" "+U():"—"}</div>
-          <div class="s">${lc==null?"30-day change after more readings":`<span style="color:var(--${lTone==="flat"?"muted":lTone})">${arrow(lc)} ${Math.abs(toU(lc)).toFixed(1)} ${U()}</span> in 30 days`}</div></div>
+        <div class="rbox"><div class="k">Body fat</div><div class="v num">${fl ? fl.trend.toFixed(1) + "%" : "—"}</div>
+          <div class="s">${fc == null ? "30-day change soon" : `<b style="color:var(--${fT})">${arrow(fc)} ${Math.abs(fc).toFixed(1)} pts</b> in 30 days`}</div></div>
+        <div class="rbox"><div class="k">Lean mass</div><div class="v num">${ll ? fw(ll.trend) + " " + U() : "—"}</div>
+          <div class="s">${lc == null ? "30-day change soon" : `<b style="color:var(--${lT})">${arrow(lc)} ${Math.abs(toU(lc)).toFixed(1)} ${U()}</b> in 30 days`}</div></div>
       </div>
       ${fatRows.length > 1 ? `<canvas class="spark" id="fatSpark" aria-label="Body fat trend"></canvas>` : ""}
-      <p class="note" style="font-size:13px">From your smart scale via Apple Health. Daily readings swing with hydration, so follow the trend.</p>
+      <p class="note" style="font-size:13px">From your smart scale through Apple Health. Daily readings swing with hydration, so follow the trend.</p>
     </section>`;
-  }
-
-  html += `<section class="card"><h2>Records</h2><div class="kv">
-    <div class="row"><span class="k">Highest</span><span class="v"><span class="num">${fw(hi.kg)}</span> <small class="k">${fmtDate(hi.date)}</small></span></div>
-    <div class="row"><span class="k">Lowest</span><span class="v"><span class="num">${fw(lo.kg)}</span> <small class="k">${fmtDate(lo.date)}</small></span></div>
-    <div class="row"><span class="k">First weigh-in</span><span class="v"><span class="num">${fw(rows[0].kg)}</span> <small class="k">${fmtDate(rows[0].date)}</small></span></div>
-  </div></section>`;
-
-  html += `<section class="card"><h2>Body mass index</h2>`;
-  if (!S0.height) html += `<p class="note">Add your height in Settings to see BMI.</p><button class="btn" id="goSet">Add height</button>`;
-  else {
-    const bmi = last.trend / Math.pow(S0.height/100, 2);
+  },
+  records(rows){
+    const hi = rows.reduce((m,r) => r.kg > m.kg ? r : m), lo = rows.reduce((m,r) => r.kg < m.kg ? r : m);
+    const line = (k, r) => `<div class="row"><span class="k">${k}</span><span class="v"><span class="num">${fw(r.kg)}</span> <small style="color:var(--muted);font-weight:500">${fmtDate(r.date)}</small></span></div>`;
+    return `<section class="card"><div class="card-h"><h2>Records</h2></div><div class="kv">${line("Highest", hi)}${line("Lowest", lo)}${line("First weigh-in", rows[0])}</div></section>`;
+  },
+  bmi(rows){
+    const h = S.settings.height;
+    let html = `<section class="card"><div class="card-h"><h2>Body mass index</h2></div>`;
+    if (!h) return html + `<p class="note">Add your height to see BMI.</p><button class="btn" id="bmiSet">Add height</button></section>`;
+    const bmi = rows[rows.length-1].trend / Math.pow(h/100, 2);
     const cat = bmi < 18.5 ? ["Underweight","bad"] : bmi < 25 ? ["Normal range","good"] : bmi < 30 ? ["Overweight","flat"] : ["Obese range","bad"];
-    const pos = Math.max(0, Math.min(100, (bmi-15)/(40-15)*100));
-    html += `<div class="row"><span><span class="num" style="font-size:32px;font-weight:600">${bmi.toFixed(1)}</span></span><span class="chip ${cat[1]}">${cat[0]}</span></div>
+    const pos = Math.max(0, Math.min(100, (bmi - 15)/(40 - 15)*100));
+    return html + `<div class="row"><span class="num" style="font-size:34px;font-weight:700">${bmi.toFixed(1)}</span><span class="pill ${cat[1]}">${cat[0]}</span></div>
       <div style="position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,var(--warn) 0 14%,var(--good) 14% 40%,var(--warn) 40% 60%,var(--bad) 60%)">
         <span style="position:absolute;top:-4px;left:calc(${pos}% - 3px);width:6px;height:18px;border-radius:3px;background:var(--fg)"></span></div>
       <div class="row" style="font-size:11px;color:var(--muted)"><span class="num">15</span><span class="num">18.5</span><span class="num">25</span><span class="num">30</span><span class="num">40</span></div>
-      <p class="note">Based on your trend weight and a height of ${S0.height} cm. BMI does not account for muscle mass.</p>`;
+      <p class="note" style="font-size:13px">Based on your trend weight and ${h} cm. BMI does not account for muscle mass.</p></section>`;
   }
-  html += `</section>`;
-
-  view.innerHTML = html;
-  document.querySelectorAll("#rng button").forEach(b => b.onclick = () => { S.settings.chartRange = +b.dataset.r; save(); renderSummary(); });
-  $("#editGoal").onclick = () => setTab("settings");
-  const gs = $("#goSet"); if (gs) gs.onclick = () => setTab("settings");
-  drawChart(rows);
+};
+const RANGES = [[7,"7D"],[30,"30D"],[90,"90D"],[365,"1Y"],[0,"All"]];
+function bindSummary(rows){
+  document.querySelectorAll("#rng button").forEach(b => b.onclick = () => { S.settings.chartRange = +b.dataset.r; save(); haptic("selection");
+    document.querySelectorAll("#rng button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange); });
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on("chShare", () => shareChart(rows));
+  on("chFull", () => openFullChart(rows));
+  on("prSet", openCommit); on("prSet2", openCommit);
+  on("glSet", openGoalSheet); on("glSet2", openGoalSheet);
+  on("bmiSet", () => setTab("settings"));
+  if ($("#chart")) mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange);
   drawFatSpark();
 }
 
 /* ---------- chart ---------- */
-function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
-function niceStep(range, target){ const raw = range/target; const p = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw/p; return (f<1.5?1:f<3?2:f<7?5:10)*p; }
-function drawChart(allRows){
-  const cv = $("#chart"); if (!cv) return;
-  const R = S.settings.chartRange; const end = allRows[allRows.length-1].n;
-  let rows = R ? allRows.filter(r => r.n >= end - R) : allRows;
-  if (!rows.length) rows = allRows.slice(-1);
-  // include one point before window so the line enters from the edge
-  const x0 = R ? end - R : rows[0].n, x1 = Math.max(end, x0 + 1);
-  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr,dpr);
-  const vals = rows.flatMap(r => [toU(r.kg), toU(r.trend)]); if (S.settings.goal!=null && R===0) vals.push(toU(S.settings.goal));
-  let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1) { const m=(hi+lo)/2; lo=m-0.5; hi=m+0.5; }
-  const st = niceStep(hi-lo, 4); lo = Math.floor(lo/st)*st; hi = Math.ceil(hi/st)*st;
-  const L = 44, Rp = 10, T = 12, B = 24;
+function niceStep(range, target){ const raw = range/target, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw/p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10)*p; }
+// Draws the weight chart into context c at size W×H. Returns the x scale and visible rows for tooltips.
+function paintChart(c, W, H, allRows, R, k){
+  k = k || 1;
+  const end = allRows[allRows.length-1].n, short = R && R <= 7;
+  let rows = R ? allRows.filter(r => r.n > end - R) : allRows; if (!rows.length) rows = allRows.slice(-1);
+  const x0 = R ? end - R + (short ? 0.5 : 0) : rows[0].n, x1 = Math.max(end + (short ? 0.5 : 0), x0 + 1);
+  const vals = rows.flatMap(r => [toU(r.kg), toU(r.trend)]); if (S.settings.goal != null && R === 0) vals.push(toU(S.settings.goal));
+  let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1){ const m = (hi + lo)/2; lo = m - .5; hi = m + .5; }
+  const st = niceStep(hi - lo, 4); lo = Math.floor(lo/st)*st; hi = Math.ceil(hi/st)*st;
+  const L = 44*k, Rp = 10*k, T = 12*k, B = 24*k;
   const X = n => L + (n - x0)/(x1 - x0)*(W - L - Rp);
   const Y = v => T + (hi - v)/(hi - lo)*(H - T - B);
   const muted = css("--muted"), line = css("--line"), accent = css("--accent"), good = css("--good"), bad = css("--bad"), warn = css("--warn"), fg = css("--fg");
-  c.font = `11px ${css("--font-num")}`; c.textBaseline = "middle";
-  // grid
+  c.font = `500 ${11*k}px ${NUMFONT}`; c.textBaseline = "middle";
   for (let v = lo; v <= hi + 1e-9; v += st){
-    c.strokeStyle = line; c.lineWidth = 1; c.beginPath(); c.moveTo(L, Y(v)+.5); c.lineTo(W-Rp, Y(v)+.5); c.stroke();
-    c.fillStyle = muted; c.textAlign = "right"; c.fillText(v.toFixed(st<1?1:0), L-8, Y(v));
+    c.strokeStyle = line; c.lineWidth = k; c.beginPath(); c.moveTo(L, Math.round(Y(v)) + .5); c.lineTo(W - Rp, Math.round(Y(v)) + .5); c.stroke();
+    c.fillStyle = muted; c.textAlign = "right"; c.fillText(v.toFixed(st < 1 ? 1 : 0), L - 8*k, Y(v));
   }
-  // x labels: months or years
   c.textAlign = "center"; c.textBaseline = "alphabetic";
-  const spanDays = x1 - x0; const d0 = new Date(x0*DAY); let cur = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth()+1, 1));
-  const everyM = spanDays > 1500 ? 12 : spanDays > 500 ? 3 : spanDays > 200 ? 2 : 1;
-  if (spanDays <= 45){ for (let n = Math.ceil(x0/7)*7 + 3; n <= x1; n += 7){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(`${p.d} ${MON[p.m-1]}`, X(n), H-6); } }
+  const span = x1 - x0;
+  if (span <= 10){ for (let n = Math.ceil(x0); n <= x1; n++){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(WD[p.wd], X(n), H - 6*k); } }
+  else if (span <= 45){ for (let n = Math.ceil(x0/7)*7 + 3; n <= x1; n += 7){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(`${p.d} ${MON[p.m-1]}`, X(n), H - 6*k); } }
   else {
+    const d0 = new Date(x0*DAY); let cur = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1));
+    const every = span > 1500 ? 12 : span > 500 ? 3 : span > 200 ? 2 : 1;
     while (cur.getTime()/DAY <= x1){
       const n = cur.getTime()/DAY, m = cur.getUTCMonth();
-      if (m % everyM === 0){ c.fillStyle = muted; c.fillText(everyM>=12 ? String(cur.getUTCFullYear()) : (m===0 ? String(cur.getUTCFullYear()) : MON[m]), X(n), H-6);
-        c.strokeStyle = line; c.beginPath(); c.moveTo(X(n)+.5, T); c.lineTo(X(n)+.5, H-B); c.stroke(); }
-      cur = new Date(Date.UTC(cur.getUTCFullYear(), m+1, 1));
+      if (m % every === 0){ c.fillStyle = muted; c.fillText(every >= 12 || m === 0 ? String(cur.getUTCFullYear()) : MON[m], X(n), H - 6*k);
+        c.strokeStyle = line; c.lineWidth = k; c.beginPath(); c.moveTo(Math.round(X(n)) + .5, T); c.lineTo(Math.round(X(n)) + .5, H - B); c.stroke(); }
+      cur = new Date(Date.UTC(cur.getUTCFullYear(), m + 1, 1));
     }
   }
-  // goal
-  if (S.settings.goal != null){ const gy = Y(toU(S.settings.goal)); if (gy >= T && gy <= H-B){ c.setLineDash([5,5]); c.strokeStyle = warn; c.lineWidth = 1.5; c.beginPath(); c.moveTo(L, gy); c.lineTo(W-Rp, gy); c.stroke(); c.setLineDash([]); } }
-  c.save(); c.beginPath(); c.rect(L, 0, W-L-Rp, H); c.clip();
-  // sinkers & floaters: line from each weigh-in to the trend
-  const showDots = rows.length <= 400;
-  for (const r of rows){ const x = X(r.n), yw = Y(toU(r.kg)), yt = Y(toU(r.trend));
-    if (showDots){ c.strokeStyle = (toU(r.kg) - toU(r.trend)) * goalDir() > 0 ? good : bad; c.globalAlpha = .55; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, yw); c.lineTo(x, yt); c.stroke(); c.globalAlpha = 1; } }
-  // trend line (with lead-in point)
+  if (S.settings.goal != null){ const gy = Y(toU(S.settings.goal)); if (gy >= T && gy <= H - B){ c.setLineDash([5*k, 5*k]); c.strokeStyle = warn; c.lineWidth = 1.5*k; c.beginPath(); c.moveTo(L, gy); c.lineTo(W - Rp, gy); c.stroke(); c.setLineDash([]); } }
+  c.save(); c.beginPath(); c.rect(L, 0, W - L - Rp, H); c.clip();
   const firstIdx = allRows.indexOf(rows[0]); const lead = firstIdx > 0 ? [allRows[firstIdx-1], ...rows] : rows;
-  c.strokeStyle = accent; c.lineWidth = 2.5; c.lineJoin = "round"; c.beginPath();
-  lead.forEach((r,i) => { const x = X(r.n), y = Y(toU(r.trend)); i ? c.lineTo(x,y) : c.moveTo(x,y); }); c.stroke();
-  if (showDots) for (const r of rows){ c.fillStyle = fg; c.beginPath(); c.arc(X(r.n), Y(toU(r.kg)), rows.length>120?1.8:2.8, 0, 7); c.fill(); }
-  const lr = rows[rows.length-1]; c.fillStyle = accent; c.beginPath(); c.arc(X(lr.n), Y(toU(lr.trend)), 5, 0, 7); c.fill();
+  // soft area under the trend
+  const grad = c.createLinearGradient(0, T, 0, H - B); grad.addColorStop(0, accent + "40"); grad.addColorStop(1, accent + "00");
+  c.beginPath(); lead.forEach((r,i) => { const x = X(r.n), y = Y(toU(r.trend)); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+  c.lineTo(X(lead[lead.length-1].n), H - B); c.lineTo(X(lead[0].n), H - B); c.closePath(); c.fillStyle = grad; c.fill();
+  const showDots = rows.length <= 400;
+  if (showDots) for (const r of rows){ const x = X(r.n), yw = Y(toU(r.kg)), yt = Y(toU(r.trend));
+    c.strokeStyle = (r.kg - r.trend)*goalDir() > 0 ? good : bad; c.globalAlpha = .6; c.lineWidth = 1.5*k; c.beginPath(); c.moveTo(x, yw); c.lineTo(x, yt); c.stroke(); c.globalAlpha = 1; }
+  c.strokeStyle = accent; c.lineWidth = 2.8*k; c.lineJoin = "round"; c.lineCap = "round"; c.beginPath();
+  lead.forEach((r,i) => { const x = X(r.n), y = Y(toU(r.trend)); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+  if (showDots) for (const r of rows){ c.fillStyle = fg; c.beginPath(); c.arc(X(r.n), Y(toU(r.kg)), (rows.length > 120 ? 1.8 : 3)*k, 0, 7); c.fill(); }
+  const lr = rows[rows.length-1]; c.fillStyle = accent; c.beginPath(); c.arc(X(lr.n), Y(toU(lr.trend)), 5.5*k, 0, 7); c.fill();
+  c.strokeStyle = css("--surface"); c.lineWidth = 2*k; c.stroke();
   c.restore();
-  // scrub tooltip
-  const tip = $("#tip");
+  return { X, rows };
+}
+function mountChart(cv, tip, allRows, R){
+  if (!cv) return;
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr, dpr);
+  const g = paintChart(c, W, H, allRows, R, 1);
+  let lastId = null;
   const show = ev => {
-    const rect = cv.getBoundingClientRect(); const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
-    let best = rows[0], bd = 1e9; for (const r of rows){ const d = Math.abs(X(r.n) - px); if (d < bd){ bd = d; best = r; } }
-    tip.hidden = false; tip.style.left = Math.max(70, Math.min(W-70, X(best.n)))+"px";
+    const rect = cv.getBoundingClientRect(), px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+    let best = g.rows[0], bd = 1e9; for (const r of g.rows){ const d = Math.abs(g.X(r.n) - px); if (d < bd){ bd = d; best = r; } }
+    if (best.id !== lastId){ lastId = best.id; haptic("selection"); }
+    tip.hidden = false; tip.style.left = Math.max(80, Math.min(W - 80, g.X(best.n))) + "px";
     tip.innerHTML = `${fmtDate(best.date)} · <b class="num">${fw(best.kg)}</b> <span style="color:var(--muted)">trend <span class="num">${fw(best.trend)}</span></span>`;
   };
-  cv.onpointerdown = cv.onpointermove = ev => { if (ev.pointerType === "mouse" && ev.buttons === 0 && ev.type==="pointermove") { show(ev); return; } show(ev); };
-  cv.onpointerleave = () => { tip.hidden = true; };
+  cv.onpointerdown = show; cv.onpointermove = ev => { if (ev.pointerType === "mouse" || ev.buttons) show(ev); };
+  cv.onpointerup = cv.onpointerleave = cv.onpointercancel = () => { tip.hidden = true; lastId = null; };
 }
-window.addEventListener("resize", () => { if (tab === "summary" && S.entries.length) drawChart(computeTrend()); });
-
+let resizeT; window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
+  if (!S.entries.length) return; const rows = computeTrend();
+  if ($(".full canvas")) mountChart($(".full canvas"), $(".full .tip"), rows, S.settings.chartRange);
+  if (tab === "summary" && $("#chart")){ mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange); drawFatSpark(); }
+}, 120); });
+function openFullChart(rows){
+  haptic("light");
+  const el = document.createElement("div"); el.className = "full";
+  el.innerHTML = `<div class="card-h"><h2 style="margin:0;font-size:22px;font-weight:700">Weight chart</h2><div class="acts">
+      <button class="mini-btn" id="fShare" aria-label="Share chart">${ICON.share}</button><button class="mini-btn" id="fClose" aria-label="Close">${ICON.close}</button></div></div>
+    <div class="seg" id="frng">${RANGES.map(([v,l]) => `<button data-r="${v}" aria-pressed="${S.settings.chartRange === v}">${l}</button>`).join("")}</div>
+    <div class="chart-wrap"><canvas aria-label="Weight chart, full screen"></canvas><div class="tip" hidden></div></div>`;
+  document.body.appendChild(el);
+  const cv = el.querySelector("canvas"), tipEl = el.querySelector(".tip");
+  mountChart(cv, tipEl, rows, S.settings.chartRange);
+  el.querySelectorAll("#frng button").forEach(b => b.onclick = () => { S.settings.chartRange = +b.dataset.r; save(); haptic("selection");
+    el.querySelectorAll("#frng button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); mountChart(cv, tipEl, rows, S.settings.chartRange); });
+  el.querySelector("#fClose").onclick = () => { el.remove(); if (tab === "summary") render(); };
+  el.querySelector("#fShare").onclick = () => shareChart(rows);
+}
 function drawFatSpark(){
   const cv = document.getElementById("fatSpark"); if (!cv) return;
-  const rows = compSeries("fat").slice(-90);
-  const dpr = devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
-  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr,dpr);
-  const v = rows.flatMap(r=>[r.v,r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi-lo<1){ const m=(hi+lo)/2; lo=m-.5; hi=m+.5; }
-  const a = rows[0].n, b = Math.max(rows[rows.length-1].n, a+1);
-  const X = n => 6 + (n-a)/(b-a)*(W-12), Y = w => 6 + (hi-w)/(hi-lo)*(H-12);
+  const rows = compSeries("fat").slice(-90); if (rows.length < 2) return;
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr, dpr);
+  const v = rows.flatMap(r => [r.v, r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi - lo < 1){ const m = (hi + lo)/2; lo = m - .5; hi = m + .5; }
+  const a = rows[0].n, b = Math.max(rows[rows.length-1].n, a + 1);
+  const X = n => 6 + (n - a)/(b - a)*(W - 12), Y = w => 6 + (hi - w)/(hi - lo)*(H - 12);
   c.fillStyle = css("--muted"); rows.forEach(r => { c.beginPath(); c.arc(X(r.n), Y(r.v), 2, 0, 7); c.fill(); });
-  c.strokeStyle = css("--warn"); c.lineWidth = 2; c.beginPath(); rows.forEach((r,i)=> i? c.lineTo(X(r.n),Y(r.trend)) : c.moveTo(X(r.n),Y(r.trend))); c.stroke();
+  c.strokeStyle = css("--warn"); c.lineWidth = 2.2; c.lineCap = "round"; c.beginPath(); rows.forEach((r,i) => i ? c.lineTo(X(r.n), Y(r.trend)) : c.moveTo(X(r.n), Y(r.trend))); c.stroke();
+}
+
+/* ---------- share images ---------- */
+function shareCanvas(cv, name){
+  haptic("light");
+  const data = cv.toDataURL("image/png");
+  if (NATIVE) nativeCmd("shareImage", { name, data });
+  else { const a = document.createElement("a"); a.href = data; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+}
+function imageFrame(W, H){
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const c = cv.getContext("2d");
+  c.fillStyle = css("--bg"); c.fillRect(0, 0, W, H);
+  c.fillStyle = css("--muted"); c.font = `600 26px ${FONT}`; c.textAlign = "right"; c.textBaseline = "alphabetic"; c.fillText("Trendline", W - 50, H - 36); c.textAlign = "left";
+  return { cv, c };
+}
+function shareChart(rows){
+  const W = 1200, H = 900, { cv, c } = imageFrame(W, H), last = rows[rows.length-1];
+  const label = (RANGES.find(r => r[0] === S.settings.chartRange) || [0,"All"])[1];
+  c.fillStyle = css("--fg"); c.font = `700 72px ${NUMFONT}`; c.fillText(`${fw(last.trend)} ${U()}`, 50, 120);
+  c.fillStyle = css("--muted"); c.font = `500 30px ${FONT}`; c.fillText(`Trend weight · ${label === "All" ? "all time" : "last " + label} · ${fmtDate(last.date)}`, 50, 170);
+  c.save(); c.translate(20, 220); paintChart(c, W - 40, H - 300, rows, S.settings.chartRange, 2); c.restore();
+  shareCanvas(cv, `trendline-chart-${todayStr()}.png`);
+}
+function shareReport(title, stats, g){
+  const W = 1080, H = 1080, { cv, c } = imageFrame(W, H);
+  c.fillStyle = css("--fg"); c.font = `800 64px ${FONT}`; c.fillText(title, 60, 130);
+  c.fillStyle = css("--muted"); c.font = `500 30px ${FONT}`; c.fillText(`${g.length} weigh-in${g.length > 1 ? "s" : ""}`, 60, 180);
+  stats.forEach((s, i) => {
+    const x = 60 + (i % 2)*490, y = 230 + Math.floor(i/2)*210;
+    c.fillStyle = css("--surface"); c.beginPath(); if (c.roundRect) c.roundRect(x, y, 470, 190, 28); else c.rect(x, y, 470, 190); c.fill();
+    c.fillStyle = css("--muted"); c.font = `700 24px ${FONT}`; c.fillText(s.k.toUpperCase(), x + 30, y + 52);
+    c.fillStyle = s.color ? css(s.color) : css("--fg"); c.font = `700 60px ${NUMFONT}`; c.fillText(s.v, x + 30, y + 122);
+    c.fillStyle = css("--muted"); c.font = `500 24px ${FONT}`; c.fillText(s.s, x + 30, y + 162);
+  });
+  if (g.length > 1){
+    const top = 680, h = 240, v = g.flatMap(r => [r.kg, r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi - lo < .4){ const m = (hi + lo)/2; lo = m - .2; hi = m + .2; }
+    const a = g[0].n, b = Math.max(g[g.length-1].n, a + 1), X = n => 80 + (n - a)/(b - a)*(W - 160), Y = w => top + (hi - w)/(hi - lo)*h;
+    c.fillStyle = css("--muted"); g.forEach(r => { c.beginPath(); c.arc(X(r.n), Y(r.kg), 7, 0, 7); c.fill(); });
+    c.strokeStyle = css("--accent"); c.lineWidth = 7; c.lineCap = "round"; c.lineJoin = "round"; c.beginPath(); g.forEach((r,i) => i ? c.lineTo(X(r.n), Y(r.trend)) : c.moveTo(X(r.n), Y(r.trend))); c.stroke();
+  }
+  shareCanvas(cv, `trendline-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`);
 }
 
 /* ---------- reports ---------- */
-function periodKey(r, mode){
-  if (mode === "monthly") return r.date.slice(0,7);
-  const wd = (new Date(r.n*DAY).getUTCDay() + 6) % 7; return fromDnum(r.n - wd); // Monday-start week
-}
-function renderReports(){
-  const rows = computeTrend(); const mode = S.settings.reportMode;
+function periodKey(r, mode){ if (mode === "monthly") return r.date.slice(0, 7); const wd = (new Date(r.n*DAY).getUTCDay() + 6) % 7; return fromDnum(r.n - wd); }
+function renderReports(head){
+  const rows = computeTrend(), mode = S.settings.reportMode;
   const groups = new Map(); for (const r of rows){ const k = periodKey(r, mode); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
-  const keys = [...groups.keys()].sort().reverse();
-  let html = `<div class="seg" id="rmode"><button data-m="weekly" aria-pressed="${mode==="weekly"}">Weekly</button><button data-m="monthly" aria-pressed="${mode==="monthly"}">Monthly</button></div>`;
-  keys.slice(0, 60).forEach((k, idx) => {
-    const g = groups.get(k); const prevKey = keys[idx+1]; const prev = prevKey ? groups.get(prevKey) : null;
-    const lo = g.reduce((m,r)=>r.kg<m.kg?r:m);
-    const avg = g.reduce((s,r)=>s+r.kg,0)/g.length;
-    const endT = g[g.length-1].trend;
-    const prevEnd = prev ? prev[prev.length-1].trend : null;
-    const vsPrev = prevEnd==null ? null : endT - prevEnd;
-    const within = g.length>1 ? endT - g[0].trend : null;
+  const keys = [...groups.keys()].sort().reverse().slice(0, 60);
+  const shares = {};
+  let html = head + `<div class="seg" id="rmode"><button data-m="weekly" aria-pressed="${mode === "weekly"}">Weekly</button><button data-m="monthly" aria-pressed="${mode === "monthly"}">Monthly</button></div>`;
+  keys.forEach((k, idx) => {
+    const g = groups.get(k), prev = keys[idx+1] ? groups.get(keys[idx+1]) : null;
+    const lo = g.reduce((m,r) => r.kg < m.kg ? r : m), avg = g.reduce((s,r) => s + r.kg, 0)/g.length;
+    const endT = g[g.length-1].trend, vsPrev = prev ? endT - prev[prev.length-1].trend : null, within = g.length > 1 ? endT - g[0].trend : null;
     let title;
     if (mode === "monthly"){ const [y,m] = k.split("-").map(Number); title = `${MONF[m-1]} ${y}`; }
-    else { const e = fromDnum(dnum(k)+6); const a = parts(k), b = parts(e); title = `${a.d} ${MON[a.m-1]} – ${b.d} ${MON[b.m-1]} ${b.y}`; }
-    html += `<section class="card"><h2 style="text-transform:none;letter-spacing:-.01em;font-size:19px;color:var(--fg);font-weight:800">${title}<span class="chip flat">${g.length} weigh-in${g.length>1?"s":""}</span></h2>
-      <div class="rgrid">
-        <div class="rbox"><div class="k">Lowest</div><div class="v num">${fw(lo.kg)}</div><div class="s">${fmtDate(lo.date)}</div></div>
-        <div class="rbox"><div class="k">Average</div><div class="v num">${fw(avg)}</div><div class="s">of recorded weights</div></div>
-        <div class="rbox"><div class="k">Trend change</div><div class="v num" style="color:var(--${tone(within)==="flat"?"fg":tone(within)})">${within==null?"—":fd(within)}</div><div class="s">within this ${mode==="monthly"?"month":"week"}</div></div>
-        <div class="rbox"><div class="k">vs previous</div><div class="v num" style="color:var(--${tone(vsPrev)==="flat"?"fg":tone(vsPrev)})">${vsPrev==null?"—":fd(vsPrev)}</div><div class="s">trend at period end</div></div>
-      </div>
-      ${g.length>1?`<canvas class="spark" data-k="${k}"></canvas>`:""}
+    else { const e = fromDnum(dnum(k) + 6), a = parts(k), b = parts(e); title = `${a.d} ${MON[a.m-1]} – ${b.d} ${MON[b.m-1]} ${b.y}`; }
+    const per = mode === "monthly" ? "month" : "week";
+    const col = d => tone(d) === "flat" ? null : "--" + tone(d);
+    const stats = [
+      { k:"Lowest", v:`${fw(lo.kg)}`, s: fmtDate(lo.date) },
+      { k:"Average", v:`${fw(avg)}`, s:"of recorded weights" },
+      { k:"Trend change", v: within == null ? "—" : fd(within), s:`within this ${per}`, color: col(within) },
+      { k:`vs last ${per}`, v: vsPrev == null ? "—" : fd(vsPrev), s:"trend at period end", color: col(vsPrev) }
+    ];
+    shares[k] = () => shareReport(title, stats, g);
+    html += `<section class="card"><div class="card-h"><h2>${title}</h2><div class="acts"><button class="mini-btn" data-share="${k}" aria-label="Share report">${ICON.share}</button></div></div>
+      <div class="rgrid">${stats.map(s => `<div class="rbox"><div class="k">${s.k}</div><div class="v num" ${s.color ? `style="color:var(${s.color})"` : ""}>${s.v}</div><div class="s">${s.s}</div></div>`).join("")}</div>
+      ${g.length > 1 ? `<canvas class="spark" data-k="${k}"></canvas>` : ""}
+      <div class="lbl">${g.length} weigh-in${g.length > 1 ? "s" : ""}</div>
     </section>`;
   });
   view.innerHTML = html;
-  document.querySelectorAll("#rmode button").forEach(b => b.onclick = () => { S.settings.reportMode = b.dataset.m; save(); renderReports(); });
-  document.querySelectorAll("canvas.spark").forEach(cv => {
-    const g = groups.get(cv.dataset.k); const dpr = devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
-    cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr,dpr);
-    const v = g.flatMap(r=>[r.kg,r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi-lo<0.4){ const m=(hi+lo)/2; lo=m-.2; hi=m+.2; }
-    const a = g[0].n, b = Math.max(g[g.length-1].n, a+1);
-    const X = n => 6 + (n-a)/(b-a)*(W-12), Y = w => 6 + (hi-w)/(hi-lo)*(H-12);
-    c.strokeStyle = css("--accent"); c.lineWidth = 2; c.beginPath(); g.forEach((r,i)=> i? c.lineTo(X(r.n),Y(r.trend)) : c.moveTo(X(r.n),Y(r.trend))); c.stroke();
+  document.querySelectorAll("#rmode button").forEach(b => b.onclick = () => { S.settings.reportMode = b.dataset.m; save(); haptic("selection"); render(); });
+  document.querySelectorAll("[data-share]").forEach(b => b.onclick = () => shares[b.dataset.share]());
+  document.querySelectorAll("canvas.spark[data-k]").forEach(cv => {
+    const g = groups.get(cv.dataset.k), dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.scale(dpr, dpr);
+    const v = g.flatMap(r => [r.kg, r.trend]); let lo = Math.min(...v), hi = Math.max(...v); if (hi - lo < .4){ const m = (hi + lo)/2; lo = m - .2; hi = m + .2; }
+    const a = g[0].n, b = Math.max(g[g.length-1].n, a + 1), X = n => 6 + (n - a)/(b - a)*(W - 12), Y = w => 6 + (hi - w)/(hi - lo)*(H - 12);
     c.fillStyle = css("--muted"); g.forEach(r => { c.beginPath(); c.arc(X(r.n), Y(r.kg), 2.2, 0, 7); c.fill(); });
+    c.strokeStyle = css("--accent"); c.lineWidth = 2.4; c.lineCap = "round"; c.beginPath(); g.forEach((r,i) => i ? c.lineTo(X(r.n), Y(r.trend)) : c.moveTo(X(r.n), Y(r.trend))); c.stroke();
   });
 }
 
 /* ---------- logbook ---------- */
-function renderLogbook(){
-  const rows = computeTrend(); const rates = rows.map((_,i)=>weeklyRateAt(rows,i));
-  const byMonth = new Map(); rows.forEach((r,i) => { const k = r.date.slice(0,7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(i); });
-  let html = "";
+function logCols(){ const c = S.settings.cols; return ["52px", "1fr", c.trend ? "1fr" : null, c.rate ? "76px" : null].filter(Boolean).join(" "); }
+function renderLogbook(head){
+  const rows = computeTrend(), rates = rows.map((_, i) => weeklyRateAt(rows, i)), cols = S.settings.cols, gtc = logCols();
+  const byMonth = new Map(); rows.forEach((r, i) => { const k = r.date.slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(i); });
+  let html = head;
   [...byMonth.keys()].sort().reverse().forEach(k => {
-    const [y,m] = k.split("-").map(Number);
+    const [y, m] = k.split("-").map(Number);
     html += `<section class="card month"><h3>${MONF[m-1]} ${y}</h3>
-      <div class="lhead"><span>Date</span><span>Recorded</span><span>Trend</span><span>Weekly</span></div>`;
+      <div class="lgrid lhead" style="grid-template-columns:${gtc}"><span>Date</span><span>Weight</span>${cols.trend ? "<span>Trend</span>" : ""}${cols.rate ? "<span>Weekly</span>" : ""}</div>`;
     byMonth.get(k).slice().reverse().forEach(i => {
       const r = rows[i], p = parts(r.date), rt = rates[i];
-      html += `<button class="lrow" data-id="${esc(r.id)}"><span class="d"><b class="num">${pad(p.d)}</b><small>${WD[p.wd]}</small></span>
-        <span class="w num">${fw(r.kg)}</span><span class="t num">${fw(r.trend)}</span>
-        <span class="rate">${rt==null?`<span class="chip flat">—</span>`:`<span class="chip ${tone(rt)} num">${arrow(rt)} ${Math.abs(toU(rt)).toFixed(1)}</span>`}</span>
-        ${(()=>{ const bits=[]; if (r.note) bits.push(esc(r.note)); if (typeof r.fat==="number") bits.push(`${r.fat.toFixed(1)}% fat`); if (!r.note && r.src==="health") bits.push("From Apple Health"); return bits.length?`<span class="memo">${bits.join(" · ")}</span>`:""; })()}</button>`;
+      const bits = []; if (r.note) bits.push(esc(r.note)); if (typeof r.fat === "number") bits.push(`${r.fat.toFixed(1)}% fat`); if (!r.note && r.src === "health") bits.push("Apple Health");
+      html += `<div class="swipe"><button class="del" data-del="${esc(r.id)}">Delete</button>
+        <button class="lrow" data-id="${esc(r.id)}"><div class="lgrid" style="grid-template-columns:${gtc}">
+          <span class="d"><b class="num">${pad(p.d)}</b><small>${WD[p.wd]}</small></span>
+          <span class="w num c">${fw(r.kg)}</span>
+          ${cols.trend ? `<span class="t num c">${fw(r.trend)}</span>` : ""}
+          ${cols.rate ? `<span class="c">${rt == null ? `<span class="chip flat">—</span>` : `<span class="chip ${tone(rt)} num">${arrow(rt)} ${Math.abs(toU(rt)).toFixed(1)}</span>`}</span>` : ""}
+        </div>${bits.length ? `<span class="memo">${bits.join(" · ")}</span>` : ""}</button></div>`;
     });
     html += `</section>`;
   });
   view.innerHTML = html;
-  view.querySelectorAll(".lrow").forEach(b => b.onclick = () => openEntry(S.entries.find(e => e.id === b.dataset.id)));
+  view.querySelectorAll(".lrow").forEach(b => b.onclick = () => {
+    if (suppressClick) return;
+    if (swipeOpen){ closeSwipe(); return; }
+    openEntry(S.entries.find(e => e.id === b.dataset.id));
+  });
+  view.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const e = S.entries.find(x => x.id === b.dataset.del); if (e) deleteEntry(e); });
+}
+// swipe left on a logbook row to reveal Delete
+let sw = null, swipeOpen = null, suppressClick = false;
+function closeSwipe(){ if (swipeOpen){ swipeOpen.style.transform = ""; swipeOpen = null; } }
+view.addEventListener("touchstart", ev => {
+  const row = ev.target.closest(".lrow"); if (!row){ if (!ev.target.closest(".del")) closeSwipe(); return; }
+  sw = { row, x: ev.touches[0].clientX, y: ev.touches[0].clientY, dx: 0, active: false, base: row === swipeOpen ? -88 : 0 };
+}, { passive:true });
+view.addEventListener("touchmove", ev => {
+  if (!sw) return;
+  const dx = ev.touches[0].clientX - sw.x, dy = ev.touches[0].clientY - sw.y;
+  if (!sw.active){
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)){ sw.active = true; if (swipeOpen && swipeOpen !== sw.row) closeSwipe(); sw.row.classList.add("dragging"); }
+    else if (Math.abs(dy) > 10){ sw = null; return; } else return;
+  }
+  sw.dx = dx; sw.row.style.transform = `translateX(${Math.min(0, Math.max(-130, sw.base + dx))}px)`;
+}, { passive:true });
+view.addEventListener("touchend", () => {
+  if (!sw) return; const { row, active, base, dx } = sw; sw = null; if (!active) return;
+  row.classList.remove("dragging"); suppressClick = true; setTimeout(() => suppressClick = false, 60);
+  if (base + dx < -44){ row.style.transform = "translateX(-88px)"; if (swipeOpen !== row) haptic("light"); swipeOpen = row; }
+  else { row.style.transform = ""; if (swipeOpen === row) swipeOpen = null; }
+});
+function deleteEntry(entry){
+  if (entry.src === "health") S.settings.healthIgnore = [...new Set([...S.settings.healthIgnore, entry.date])];
+  else if (S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
+  S.entries = S.entries.filter(e => e !== entry); save(); haptic("warning"); swipeOpen = null; render(); scheduleReminder();
+  toast("Weigh-in deleted", { label: "Undo", fn: () => {
+    if (entry.src === "health") S.settings.healthIgnore = S.settings.healthIgnore.filter(d => d !== entry.date);
+    else if (S.settings.healthWrite) nativeCmd("healthWrite", { date: entry.date, kg: entry.kg });
+    if (!S.entries.some(e => e.date === entry.date)) S.entries.push(entry);
+    sortEntries(); save(); render(); scheduleReminder();
+  }});
 }
 
-/* ---------- entry sheet ---------- */
-function closeSheet(){ const s = $(".scrim"); if (s) s.remove(); }
-function openEntry(entry){
-  closeSheet();
-  const last = S.entries[S.entries.length-1];
-  const startVal = entry ? toU(entry.kg) : last ? toU(last.kg) : (U()==="lb"?170:75);
+/* ---------- sheets ---------- */
+function openSheet(inner){
+  document.querySelectorAll(".scrim").forEach(s => s.remove());
   const el = document.createElement("div"); el.className = "scrim";
-  el.innerHTML = `<form class="sheet" id="ef" novalidate>
-    <div class="row"><h2>${entry?"Edit weigh-in":"New weigh-in"}</h2><button type="button" class="link" id="ec">Cancel</button></div>
-    <div class="wbig"><button type="button" class="step" id="em" aria-label="Decrease">−</button>
-      <input id="ew" inputmode="decimal" autocomplete="off" value="${startVal.toFixed(1)}" aria-label="Weight in ${U()}">
-      <button type="button" class="step" id="ep" aria-label="Increase">+</button></div>
-    <div style="text-align:center;color:var(--muted);margin-top:-8px">${U()}</div>
-    <label class="field"><span>Date</span><input type="date" id="ed" value="${entry?entry.date:todayStr()}" max="${todayStr()}"></label>
-    <label class="field"><span>Note (optional)</span><input id="en" maxlength="140" value="${esc(entry?.note||"")}" placeholder="e.g. after holiday"></label>
-    <p class="err" id="ee" hidden></p>
-    <div class="btns">${entry?`<button type="button" class="btn danger" id="edel">Delete</button>`:""}<button class="btn primary" type="submit">Save</button></div>
-  </form>`;
+  el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${inner}</div>`;
   document.body.appendChild(el);
-  const w = $("#ew");
-  setTimeout(() => { w.focus(); w.select(); }, 60);
-  const bump = d => { const v = parseFloat(w.value.replace(",", ".")); if (!isNaN(v)) w.value = (v + d).toFixed(1); };
-  $("#em").onclick = () => bump(-0.1); $("#ep").onclick = () => bump(0.1);
-  $("#ec").onclick = closeSheet;
+  const sh = el.querySelector(".sheet");
   el.addEventListener("click", ev => { if (ev.target === el) closeSheet(); });
-  if (entry){
-    const del = $("#edel"); let armed = false;
-    del.onclick = () => { if (!armed){ armed = true; del.textContent = "Tap again to delete"; return; }
-      if (entry.src === "health"){ S.settings.healthIgnore = [...new Set([...(S.settings.healthIgnore||[]), entry.date])]; }
-      else if (S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
-      S.entries = S.entries.filter(e => e.id !== entry.id); save(); closeSheet(); render(); scheduleReminder(); toast("Weigh-in deleted"); };
-  }
-  $("#ef").addEventListener("submit", ev => {
+  sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet);
+  let y0 = null, dy = 0;
+  sh.addEventListener("touchstart", ev => { if (sh.scrollTop > 0 || (ev.target.closest("input,select,textarea,button") && !ev.target.closest(".grab"))){ y0 = null; return; } y0 = ev.touches[0].clientY; dy = 0; sh.style.transition = "none"; }, { passive:true });
+  sh.addEventListener("touchmove", ev => { if (y0 == null) return; dy = Math.max(0, ev.touches[0].clientY - y0); sh.style.transform = `translateY(${dy}px)`; }, { passive:true });
+  sh.addEventListener("touchend", () => { if (y0 == null) return; y0 = null; sh.style.transition = ""; if (dy > 110) closeSheet(); else sh.style.transform = ""; });
+  return sh;
+}
+function closeSheet(){
+  const s = document.querySelector(".scrim:not(.closing)"); if (!s) return;
+  s.classList.add("closing"); s.querySelector(".sheet").style.transform = "translateY(100%)";
+  if (document.activeElement) document.activeElement.blur();
+  setTimeout(() => s.remove(), 240);
+}
+function openEntry(entry){
+  const last = S.entries[S.entries.length-1];
+  const startVal = entry ? toU(entry.kg) : last ? toU(last.kg) : (U() === "lb" ? 170 : 75);
+  const sh = openSheet(`
+    <div class="sheet-h"><button class="link" data-x>Cancel</button><h2>${entry ? "Edit weigh-in" : "New weigh-in"}</h2><span style="width:52px"></span></div>
+    <form id="ef" novalidate style="display:flex;flex-direction:column;gap:14px">
+      <div class="wbig"><button type="button" class="step" id="em" aria-label="Decrease">−</button>
+        <input id="ew" inputmode="decimal" autocomplete="off" value="${startVal.toFixed(1)}" aria-label="Weight in ${U()}">
+        <button type="button" class="step" id="ep" aria-label="Increase">+</button></div>
+      <div style="text-align:center;color:var(--muted);margin-top:-10px;font-weight:600">${U()}</div>
+      <div class="list">
+        <label class="item"><span class="k">Date</span><input type="date" id="ed" value="${entry ? entry.date : todayStr()}" max="${todayStr()}" style="background:transparent;border:0;color:var(--accent);font-size:17px"></label>
+        <label class="item"><span class="k">Note</span><input id="en" maxlength="140" value="${esc(entry?.note || "")}" placeholder="Optional" style="width:60%"></label>
+      </div>
+      <p class="err" id="ee" hidden></p>
+      <button class="btn primary" type="submit">Save</button>
+      ${entry ? `<button type="button" class="btn danger" id="edel">Delete weigh-in</button>` : ""}
+    </form>`);
+  const w = sh.querySelector("#ew");
+  if (!entry) setTimeout(() => { w.focus(); w.select(); }, 350);
+  const bump = d => { const v = parseFloat(w.value.replace(",", ".")); if (!isNaN(v)){ w.value = (v + d).toFixed(1); haptic("selection"); } };
+  sh.querySelector("#em").onclick = () => bump(-0.1); sh.querySelector("#ep").onclick = () => bump(0.1);
+  if (entry) sh.querySelector("#edel").onclick = () => { closeSheet(); deleteEntry(entry); };
+  sh.querySelector("#ef").addEventListener("submit", ev => {
     ev.preventDefault();
-    const v = parseFloat(w.value.replace(",", ".")); const date = $("#ed").value; const note = $("#en").value.trim();
-    const err = $("#ee");
+    const v = parseFloat(w.value.replace(",", ".")), date = sh.querySelector("#ed").value, note = sh.querySelector("#en").value.trim(), err = sh.querySelector("#ee");
     const kg = fromU(v);
-    if (isNaN(v) || kg < 20 || kg > 400){ err.hidden = false; err.textContent = `Enter a weight between ${toU(20).toFixed(0)} and ${toU(400).toFixed(0)} ${U()}.`; return; }
+    if (isNaN(v) || kg < 20 || kg > 400){ err.hidden = false; err.textContent = `Enter a weight between ${toU(20).toFixed(0)} and ${toU(400).toFixed(0)} ${U()}.`; haptic("warning"); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)){ err.hidden = false; err.textContent = "Pick a date."; return; }
     if (entry && entry.date !== date && S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
-    const keepComp = entry ? { fat: entry.fat, lean: entry.lean } : {};
+    const keep = entry && entry.date === date ? { fat: entry.fat, lean: entry.lean } : {};
     if (entry) S.entries = S.entries.filter(e => e.id !== entry.id);
-    const same = S.entries.find(e => e.date === date);
-    const kgR = Math.round(kg*1000)/1000;
+    const same = S.entries.find(e => e.date === date), kgR = Math.round(kg*1000)/1000;
     if (same){ same.kg = kgR; same.note = note || same.note || ""; delete same.src; }
-    else { const ne = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), date, kg: kgR, note };
-      if (entry && entry.date === date){ if (typeof keepComp.fat === "number") ne.fat = keepComp.fat; if (typeof keepComp.lean === "number") ne.lean = keepComp.lean; }
-      S.entries.push(ne); }
-    sortEntries(); save(); closeSheet(); render(); toast(same ? "Updated that day's weigh-in" : "Saved");
+    else { const ne = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date, kg: kgR, note };
+      if (typeof keep.fat === "number") ne.fat = keep.fat; if (typeof keep.lean === "number") ne.lean = keep.lean; S.entries.push(ne); }
+    sortEntries(); save(); closeSheet(); haptic("success"); render();
+    toast(same ? "Updated that day's weigh-in" : "Saved");
     if (S.settings.healthWrite) nativeCmd("healthWrite", { date, kg: kgR });
-    scheduleReminder();
+    scheduleReminder(); checkCelebrate(false);
   });
+}
+function numberSheet({ title, intro, label, value, placeholder, onSave, onClear }){
+  const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>${title}</h2><span style="width:52px"></span></div>
+    ${intro ? `<p class="note">${intro}</p>` : ""}
+    <div class="wbig"><input id="nv" inputmode="decimal" autocomplete="off" value="${value ?? ""}" placeholder="${placeholder}" aria-label="${label}"></div>
+    <div style="text-align:center;color:var(--muted);margin-top:-10px;font-weight:600">${label}</div>
+    <p class="err" id="ne" hidden></p>
+    <button class="btn primary" id="ns">Save</button>
+    ${onClear && value != null && value !== "" ? `<button class="btn" id="nc">Remove</button>` : ""}`);
+  const i = sh.querySelector("#nv"); setTimeout(() => { i.focus(); i.select(); }, 350);
+  sh.querySelector("#ns").onclick = () => { const v = parseFloat(i.value.replace(",", ".")); if (isNaN(v) || v <= 0){ const e = sh.querySelector("#ne"); e.hidden = false; e.textContent = "Enter a number above zero."; haptic("warning"); return; } onSave(v); closeSheet(); haptic("success"); render(); };
+  const c = sh.querySelector("#nc"); if (c) c.onclick = () => { onClear(); closeSheet(); render(); };
+}
+function openCommit(){
+  numberSheet({ title: "Weekly commitment", intro: `The pace you plan to ${goalDir() < 0 ? "lose" : "gain"} each week. Predictions compare it with your real pace.`,
+    label: `${U()} per week`, value: S.settings.commit ? toU(S.settings.commit).toFixed(2) : "", placeholder: U() === "lb" ? "1.0" : "0.5",
+    onSave: v => { S.settings.commit = fromU(v); save(); }, onClear: () => { S.settings.commit = null; save(); } });
+}
+function openGoalSheet(){
+  numberSheet({ title: "Goal weight", intro: "Your trend weight is measured against this goal.", label: U(),
+    value: S.settings.goal != null ? toU(S.settings.goal).toFixed(1) : "", placeholder: S.entries.length ? fw(computeTrend().pop().trend) : "70.0",
+    onSave: v => setGoal(fromU(v)), onClear: () => setGoal(null) });
+}
+function setGoal(kg){
+  const changed = kg !== S.settings.goal; S.settings.goal = kg;
+  if (changed){ S.settings.goalSince = kg == null ? null : todayStr(); resetCelebrations(); }
+  save();
+}
+function openLayout(){
+  haptic("light");
+  const draw = () => {
+    const cards = S.settings.cards;
+    return `<div class="sheet-h"><span style="width:52px"></span><h2>Summary cards</h2><button class="link" data-x>Done</button></div>
+      <p class="note">Turn cards on or off and change their order.</p>
+      <div class="list">${cards.map((c, i) => `<div class="lay-row"><span class="name">${CARD_NAMES[c.id]}</span>
+        <button class="mv" data-up="${i}" ${i === 0 ? "disabled" : ""} aria-label="Move up">${ICON.up}</button>
+        <button class="mv" data-dn="${i}" ${i === cards.length - 1 ? "disabled" : ""} aria-label="Move down">${ICON.down}</button>
+        <input type="checkbox" class="tg" data-on="${i}" ${c.on ? "checked" : ""} aria-label="Show ${CARD_NAMES[c.id]}"></div>`).join("")}</div>
+      <button class="link" id="layReset" style="align-self:center">Reset to default</button>`;
+  };
+  const sh = openSheet(draw());
+  const bind = () => {
+    sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet);
+    sh.querySelectorAll("[data-up]").forEach(b => b.onclick = () => move(+b.dataset.up, -1));
+    sh.querySelectorAll("[data-dn]").forEach(b => b.onclick = () => move(+b.dataset.dn, 1));
+    sh.querySelectorAll("[data-on]").forEach(b => b.onchange = () => { S.settings.cards[+b.dataset.on].on = b.checked; save(); haptic("light"); render(); });
+    sh.querySelector("#layReset").onclick = () => { S.settings.cards = null; normalize(); save(); refresh(); };
+  };
+  const refresh = () => { const keep = sh.querySelector(".grab").outerHTML; sh.innerHTML = keep + draw(); bind(); render(); };
+  const move = (i, d) => { const c = S.settings.cards, j = i + d; if (j < 0 || j >= c.length) return; [c[i], c[j]] = [c[j], c[i]]; save(); haptic("selection"); refresh(); };
+  bind();
+}
+function openColumns(){
+  haptic("light");
+  const c = S.settings.cols;
+  const sh = openSheet(`<div class="sheet-h"><span style="width:52px"></span><h2>Columns</h2><button class="link" data-x>Done</button></div>
+    <div class="list">
+      <label class="item"><span class="k">Trend weight</span><input type="checkbox" class="tg" id="ct" ${c.trend ? "checked" : ""}></label>
+      <label class="item"><span class="k">Weekly rate</span><input type="checkbox" class="tg" id="cr" ${c.rate ? "checked" : ""}></label>
+    </div>`);
+  sh.querySelector("#ct").onchange = e => { S.settings.cols.trend = e.target.checked; save(); haptic("light"); render(); };
+  sh.querySelector("#cr").onchange = e => { S.settings.cols.rate = e.target.checked; save(); haptic("light"); render(); };
 }
 
 /* ---------- settings ---------- */
-function renderSettings(){
+function renderSettings(head){
   const s = S.settings;
-  const nativeCards = NATIVE ? `
-  <section class="card"><h2>Apple Health</h2><div class="set">
-    <label><span class="k">Import weigh-ins<span class="h">Reads weight from your smart scale or other apps. Your own entries always win.</span></span><input type="checkbox" class="tg" id="hr" ${s.healthRead?"checked":""}></label>
-    <label><span class="k">Save weigh-ins to Health<span class="h">Each weight you log here is added to Apple Health</span></span><input type="checkbox" class="tg" id="hw" ${s.healthWrite?"checked":""}></label>
-    ${s.healthRead?`<label><span class="k">Notify me after each weigh-in<span class="h">Shows your weight and trend as soon as your scale syncs, even when Trendline is closed</span></span><input type="checkbox" class="tg" id="hn" ${s.notifyWeigh!==false?"checked":""}></label>`:""}
-    ${s.healthRead?`<div class="item"><span class="k">Last checked<span class="h">${s.healthSince?fmtDate(s.healthSince):"Not yet"}</span></span><button class="btn" id="hs" style="padding:8px 14px">Check now</button></div>`:""}
-  </div></section>
-
-  <section class="card"><h2>Daily reminder</h2><div class="set">
-    <label><span class="k">Remind me to weigh in<span class="h">Skipped on days you've already logged</span></span><input type="checkbox" class="tg" id="rm" ${s.remind?"checked":""}></label>
-    <label><span class="k">Time</span><input type="time" id="rt" value="${s.remindTime||"07:30"}" ${s.remind?"":"disabled"}></label>
-  </div></section>` : "";
-
-  view.innerHTML = nativeCards + `
-  <section class="card"><h2>Goal</h2><div class="set">
-    <label><span class="k">Goal weight<span class="h">Leave empty for no goal</span></span><input id="sg" inputmode="decimal" value="${s.goal==null?"":toU(s.goal).toFixed(1)}" placeholder="${U()}"></label>
-    <label><span class="k">Starting weight<span class="h">Defaults to your first weigh-in</span></span><input id="ss" inputmode="decimal" value="${s.start==null?"":toU(s.start).toFixed(1)}" placeholder="${S.entries[0]?fw(S.entries[0].kg):U()}"></label>
-    <label><span class="k">Milestone every<span class="h">Steps shown on the goal card</span></span><input id="sm" inputmode="decimal" value="${s.step==null?"":toU(s.step).toFixed(1)}" placeholder="${U()==="lb"?"5.0":"2.0"}"></label>
-  </div></section>
-
-  <section class="card"><h2>Body & units</h2><div class="set">
-    <label><span class="k">Weight units</span><select id="su"><option value="kg" ${s.unit==="kg"?"selected":""}>Kilograms</option><option value="lb" ${s.unit==="lb"?"selected":""}>Pounds</option></select></label>
-    <label><span class="k">Height<span class="h">Used for BMI</span></span><input id="sh" inputmode="decimal" value="${s.height??""}" placeholder="cm"></label>
-  </div></section>
-
-  <section class="card"><h2>How to calculate</h2><div class="set">
-    <label><span class="k">Trend smoothing<span class="h">Heavier smoothing ignores daily swings more but reacts slower</span></span>
-      <select id="sa"><option value="0.2" ${s.smooth==0.2?"selected":""}>Light</option><option value="0.1" ${s.smooth==0.1?"selected":""}>Standard</option><option value="0.05" ${s.smooth==0.05?"selected":""}>Heavy</option></select></label>
-  </div></section>
-
-  <section class="card"><h2>Appearance</h2><div class="set">
-    <label><span class="k">Theme</span><select id="st"><option value="auto" ${s.theme==="auto"?"selected":""}>Match phone</option><option value="dark" ${s.theme==="dark"?"selected":""}>Dark</option><option value="light" ${s.theme==="light"?"selected":""}>Light</option></select></label>
-  </div></section>
-
-  <section class="card"><h2>Backup & import</h2>
-    ${NATIVE ? `<p class="note">Automatic backups are saved in the Files app under <b>On My iPhone › Trendline › Backups</b>. Copy one to iCloud Drive now and then to keep it safe if the app is deleted.</p>
-    <p class="note" id="bkinfo" style="font-size:13px">${backupText()}</p>` : `<p class="note">Your data stays on this phone only. Export a backup now and then so you don't lose it if the app is removed.</p>`}
-    <div class="btns"><button class="btn primary" id="bx">Export backup</button><button class="btn" id="bc">Export CSV</button><button class="btn" id="bi">Import file</button></div>
-    <p class="note" style="font-size:13px">Import accepts this app's backup (.json) or a CSV with a date column and a weight column, such as a Happy Scale export.</p>
-  </section>
-
-  <section class="card"><h2>Danger zone</h2>
-    <button class="btn danger" id="bd">Erase all data</button>
-  </section>
-  <p class="note" style="text-align:center;font-size:12px">Trendline Scale${window.__APP_VERSION__?" "+esc(window.__APP_VERSION__):""}</p>`;
-
-  const num = (id, cb) => $(id).addEventListener("change", e => { const raw = e.target.value.trim().replace(",", "."); const v = raw===""?null:parseFloat(raw); if (raw!=="" && isNaN(v)) { toast("Enter a number"); return; } cb(v); save(); toast("Saved"); });
-  num("#sg", v => S.settings.goal = v==null?null:fromU(v));
-  num("#ss", v => S.settings.start = v==null?null:fromU(v));
-  num("#sm", v => S.settings.step = v==null||v<=0?null:fromU(v));
-  num("#sh", v => S.settings.height = v);
-  $("#su").onchange = e => { S.settings.unit = e.target.value; save(); renderSettings(); toast("Units changed"); };
-  $("#sa").onchange = e => { S.settings.smooth = parseFloat(e.target.value); save(); toast("Saved"); };
-  $("#st").onchange = e => { S.settings.theme = e.target.value; save(); applyTheme(); };
-  $("#bx").onclick = () => download(`weight-backup-${todayStr()}.json`, JSON.stringify(S, null, 1), "application/json");
-  $("#bc").onclick = () => { const rows = computeTrend(); download(`weight-${todayStr()}.csv`, "Date,Weight (kg),Trend (kg),Body fat (%),Lean mass (kg),Note\n" + rows.map(r => `${r.date},${r.kg.toFixed(2)},${r.trend.toFixed(2)},${typeof r.fat==="number"?r.fat.toFixed(1):""},${typeof r.lean==="number"?r.lean.toFixed(2):""},"${(r.note||"").replace(/"/g,'""')}"`).join("\n"), "text/csv"); };
-  $("#bi").onclick = pickImport;
+  const tgl = (id, on, k, h) => `<label class="item"><span class="k">${k}${h ? `<span class="h">${h}</span>` : ""}</span><input type="checkbox" class="tg" id="${id}" ${on ? "checked" : ""}></label>`;
+  const inp = (id, k, val, ph, h) => `<label class="item"><span class="k">${k}${h ? `<span class="h">${h}</span>` : ""}</span><input id="${id}" inputmode="decimal" value="${val}" placeholder="${ph}"></label>`;
+  let html = head;
   if (NATIVE){
-    $("#hr").onchange = e => { S.settings.healthRead = e.target.checked; save(); if (e.target.checked){ nativeCmd("healthAuthorize", {write: S.settings.healthWrite}); if (S.settings.notifyWeigh !== false) nativeCmd("notifyAuth"); } renderSettings(); };
-    $("#hw").onchange = e => { S.settings.healthWrite = e.target.checked; save(); if (e.target.checked) nativeCmd("healthAuthorize", {write: true}); };
-    const hn = $("#hn"); if (hn) hn.onchange = e => { S.settings.notifyWeigh = e.target.checked; save(); if (e.target.checked) nativeCmd("notifyAuth"); };
+    html += `<div class="group-t">Apple Health</div><div class="list">
+      ${tgl("hr", s.healthRead, "Import weigh-ins", "Weight, body fat and lean mass from your scale")}
+      ${tgl("hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
+      ${s.healthRead ? tgl("hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
+      ${s.healthRead ? `<button class="item" id="hs"><span class="k">Check now</span><span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
+    </div>
+    <div class="group-t">Daily reminder</div><div class="list">
+      ${tgl("rm", s.remind, "Remind me to weigh in", "Skipped on days you've already weighed in")}
+      <label class="item"><span class="k">Time</span><input type="time" id="rt" value="${s.remindTime || "07:30"}" ${s.remind ? "" : "disabled"}></label>
+    </div>`;
+  }
+  html += `<div class="group-t">Goal</div><div class="list">
+      ${inp("sg", "Goal weight", s.goal == null ? "" : toU(s.goal).toFixed(1), U())}
+      ${inp("ss", "Starting weight", s.start == null ? "" : toU(s.start).toFixed(1), S.entries[0] ? fw(S.entries[0].kg) : U(), "Defaults to your first weigh-in")}
+      ${inp("sm", "Milestone every", s.step == null ? "" : toU(s.step).toFixed(1), U() === "lb" ? "5.0" : "2.0")}
+      ${inp("sc", "Weekly commitment", s.commit == null ? "" : toU(s.commit).toFixed(2), `${U()}/wk`)}
+    </div>
+    <div class="group-t">Body & units</div><div class="list">
+      <label class="item"><span class="k">Weight units</span><select id="su"><option value="kg" ${s.unit === "kg" ? "selected" : ""}>Kilograms</option><option value="lb" ${s.unit === "lb" ? "selected" : ""}>Pounds</option></select></label>
+      ${inp("sh", "Height", s.height ?? "", "cm", "Used for BMI")}
+    </div>
+    <div class="group-t">How to calculate</div><div class="list">
+      <label class="item"><span class="k">Trend smoothing<span class="h">Heavier smoothing ignores daily swings more but reacts slower</span></span>
+        <select id="sa"><option value="0.2" ${s.smooth == 0.2 ? "selected" : ""}>Light</option><option value="0.1" ${s.smooth == 0.1 ? "selected" : ""}>Standard</option><option value="0.05" ${s.smooth == 0.05 ? "selected" : ""}>Heavy</option></select></label>
+    </div>
+    <div class="group-t">Appearance</div><div class="list">
+      <label class="item"><span class="k">Theme</span><select id="st"><option value="auto" ${s.theme === "auto" ? "selected" : ""}>Match iPhone</option><option value="dark" ${s.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${s.theme === "light" ? "selected" : ""}>Light</option></select></label>
+      <div class="item"><span class="k">Accent</span><div class="swatches">${Object.keys(ACCENTS).map(k => `<button class="sw" data-acc="${k}" aria-pressed="${s.accent === k}" aria-label="${k}" style="background:${isDark() ? ACCENTS[k][0] : ACCENTS[k][1]}"></button>`).join("")}</div></div>
+      ${NATIVE ? tgl("hp", s.haptics !== false, "Haptics") : ""}
+    </div>`;
+  if (NATIVE) html += `<div class="group-t">Privacy</div><div class="list">${tgl("lk", s.lock, "Lock with Face ID", "Asks for Face ID or your passcode when you open the app")}</div>`;
+  html += `<div class="group-t">Backup</div><div class="list">
+      <button class="item action" id="bx">Export backup</button>
+      <button class="item action" id="bc">Export spreadsheet (CSV)</button>
+      <button class="item action" id="bi">Restore from backup</button>
+    </div>
+    <p class="group-f" id="bkinfo">${NATIVE ? backupText() : "Your data stays on this device. Export a backup now and then."}</p>
+    ${NATIVE ? `<p class="group-f">Automatic backups are in the Files app: On My iPhone › Trendline › Backups.</p>` : ""}
+    <div class="list" style="margin-top:8px"><button class="item danger" id="bd">Erase all data</button></div>
+    <p class="footer">Trendline${window.__APP_VERSION__ ? " " + esc(window.__APP_VERSION__) : ""}</p>`;
+  view.innerHTML = html;
+
+  const num = (id, cb) => $(id).addEventListener("change", e => { const raw = e.target.value.trim().replace(",", "."), v = raw === "" ? null : parseFloat(raw); if (raw !== "" && (isNaN(v) || v <= 0)){ toast("Enter a number above zero"); return; } cb(v); save(); haptic("light"); toast("Saved"); });
+  num("#sg", v => setGoal(v == null ? null : fromU(v)));
+  num("#ss", v => { S.settings.start = v == null ? null : fromU(v); resetCelebrations(); });
+  num("#sm", v => { S.settings.step = v == null ? null : fromU(v); resetCelebrations(); });
+  num("#sc", v => S.settings.commit = v == null ? null : fromU(v));
+  num("#sh", v => S.settings.height = v);
+  $("#su").onchange = e => { S.settings.unit = e.target.value; save(); haptic("light"); render(); };
+  $("#sa").onchange = e => { S.settings.smooth = parseFloat(e.target.value); save(); resetCelebrations(); haptic("light"); };
+  $("#st").onchange = e => { S.settings.theme = e.target.value; save(); applyTheme(); render(); };
+  document.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { S.settings.accent = b.dataset.acc; save(); haptic("selection"); applyTheme(); render(); });
+  $("#bx").onclick = () => exportFile(`trendline-backup-${todayStr()}.json`, JSON.stringify(S, null, 1), "application/json");
+  $("#bc").onclick = () => { const rows = computeTrend(); exportFile(`trendline-${todayStr()}.csv`, "Date,Weight (kg),Trend (kg),Body fat (%),Lean mass (kg),Note\n" + rows.map(r => `${r.date},${r.kg.toFixed(2)},${r.trend.toFixed(2)},${typeof r.fat === "number" ? r.fat.toFixed(1) : ""},${typeof r.lean === "number" ? r.lean.toFixed(2) : ""},"${(r.note || "").replace(/"/g, '""')}"`).join("\n"), "text/csv"); };
+  $("#bi").onclick = pickRestore;
+  const bd = $("#bd"); let armed = false;
+  bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; haptic("warning"); return; }
+    const keepLock = S.settings.lock; S = { entries:[], settings:{...DEFAULTS, lock: keepLock} }; normalize(); save(); applyTheme(); scheduleReminder(); render(); toast("All data erased"); };
+  if (NATIVE){
+    $("#hr").onchange = e => { if (e.target.checked) connectHealth(); else { S.settings.healthRead = false; save(); } haptic("light"); render(); };
+    $("#hw").onchange = e => { S.settings.healthWrite = e.target.checked; save(); haptic("light"); if (e.target.checked) nativeCmd("healthAuthorize", { write: true }); };
+    const hn = $("#hn"); if (hn) hn.onchange = e => { S.settings.notifyWeigh = e.target.checked; save(); haptic("light"); if (e.target.checked) nativeCmd("notifyAuth"); };
     const hs = $("#hs"); if (hs) hs.onclick = () => { syncHealth(true); toast("Checking Apple Health…"); };
-    $("#rm").onchange = e => { S.settings.remind = e.target.checked; save(); scheduleReminder(); renderSettings(); if (e.target.checked) toast(`Reminder set for ${S.settings.remindTime}`); };
+    $("#rm").onchange = e => { S.settings.remind = e.target.checked; save(); haptic("light"); scheduleReminder(); render(); if (e.target.checked) toast(`Reminder set for ${S.settings.remindTime}`); };
     $("#rt").onchange = e => { if (!e.target.value) return; S.settings.remindTime = e.target.value; save(); scheduleReminder(); toast(`Reminder set for ${e.target.value}`); };
+    $("#hp").onchange = e => { S.settings.haptics = e.target.checked; save(); haptic("light"); };
+    $("#lk").onchange = e => { const want = e.target.checked; e.target.checked = S.settings.lock; nativeCmd("lockSet", { enabled: want }); };
     nativeCmd("backupInfo");
   }
-  const bd = $("#bd"); let armed = false;
-  bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; return; } S = { entries:[], settings:{...DEFAULTS} }; save(); applyTheme(); scheduleReminder(); renderSettings(); toast("All data erased"); };
 }
-
-async function download(name, text, type){
-  if (NATIVE && window.webkit.messageHandlers.share){ window.webkit.messageHandlers.share.postMessage({name, text}); return; }
-  const blob = new Blob([text], {type});
-  const file = new File([blob], name, {type});
-  if (navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if (e.name === "AbortError") return; } }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+function exportFile(name, text, type){
+  haptic("light");
+  if (NATIVE && window.webkit.messageHandlers.share){ window.webkit.messageHandlers.share.postMessage({ name, text }); return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
-
-function pickImport(){
-  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,.csv,text/csv,application/json,text/plain";
-  inp.onchange = async () => { const f = inp.files[0]; if (!f) return; const text = await f.text(); importText(text); };
+function pickRestore(){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json,application/json";
+  inp.onchange = async () => { const f = inp.files[0]; if (!f) return; restoreBackup(await f.text()); };
   inp.click();
 }
-function parseDateAny(s){
-  s = s.trim().replace(/^"|"$/g, "");
-  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
-  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/); if (m){ let a=+m[1], b=+m[2]; // assume M/D unless impossible
-    if (a > 12) return `${m[3]}-${pad(b)}-${pad(a)}`; return `${m[3]}-${pad(a)}-${pad(b)}`; }
-  const d = new Date(s); if (!isNaN(d)) return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  return null;
-}
-function splitCSV(line){ const out=[]; let cur="", q=false; for (let i=0;i<line.length;i++){ const ch=line[i]; if (q){ if (ch==='"'){ if (line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; } else if (ch==='"') q=true; else if (ch===","||ch===";"||ch==="\t"){ out.push(cur); cur=""; } else cur+=ch; } out.push(cur); return out; }
-function importText(text){
+function restoreBackup(text){
+  let d; try{ d = JSON.parse(text); }catch(e){ d = null; }
+  if (!d || !Array.isArray(d.entries)){ toast("That file isn't a Trendline backup."); haptic("warning"); return; }
   let added = 0, updated = 0;
-  const upsert = (date, kg, note) => { if (!date || isNaN(kg) || kg < 20 || kg > 400) return; const ex = S.entries.find(e => e.date === date);
-    if (ex){ ex.kg = kg; if (note) ex.note = note; updated++; } else { S.entries.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,7), date, kg, note: note||"" }); added++; } };
-  try{
-    const t = text.trim();
-    if (t.startsWith("{")){
-      const d = JSON.parse(t);
-      if (d.settings) S.settings = {...DEFAULTS, ...d.settings};
-      (d.entries||[]).forEach(e => upsert(e.date, +e.kg, e.note));
-    } else {
-      const lines = t.split(/\r?\n/).filter(l => l.trim()); if (!lines.length) throw 0;
-      const head = splitCSV(lines[0]).map(h => h.toLowerCase());
-      const hasHead = head.some(h => /date|weight|kg|lb/.test(h));
-      let di = head.findIndex(h => h.includes("date")); if (di < 0) di = 0;
-      let wi = head.findIndex(h => /weight|kg|lb/.test(h) && !/average|trend|moving|bmi|fat/.test(h)); if (wi < 0) wi = di === 0 ? 1 : 0;
-      const ni = head.findIndex(h => /note|comment/.test(h));
-      const isLb = hasHead && /lb|pound/.test(head[wi] || "") ? true : hasHead && /kg|kilo/.test(head[wi]||"") ? false : null;
-      const parsed = [];
-      for (const l of lines.slice(hasHead?1:0)){ const c = splitCSV(l); const date = parseDateAny(c[di]||""); const w = parseFloat(String(c[wi]||"").replace(",", ".")); if (date && !isNaN(w)) parsed.push([date, w, ni>=0 ? (c[ni]||"").trim() : ""]); }
-      if (!parsed.length) throw 0;
-      const med = parsed.map(p=>p[1]).sort((a,b)=>a-b)[Math.floor(parsed.length/2)];
-      const lb = isLb ?? (med > 140);
-      parsed.forEach(([d,w,n]) => upsert(d, Math.round((lb ? w/LB : w)*1000)/1000, n));
-      if (lb && !S.entries.length) S.settings.unit = "lb";
-    }
-  }catch(e){ toast("Could not read that file. Use a .json backup or a CSV with date and weight columns."); return; }
-  sortEntries(); save(); applyTheme(); render();
-  toast(`Imported: ${added} new, ${updated} updated`);
+  for (const e of d.entries){
+    if (!e || !/^\d{4}-\d{2}-\d{2}$/.test(e.date) || !(e.kg > 20 && e.kg < 400)) continue;
+    const ex = S.entries.find(x => x.date === e.date);
+    if (ex){ Object.assign(ex, e, { id: ex.id }); updated++; } else { S.entries.push({ ...e, id: e.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 7) }); added++; }
+  }
+  if (d.settings){ const keep = { lock: S.settings.lock }; S.settings = { ...DEFAULTS, ...d.settings, ...keep }; }
+  normalize(); sortEntries(); save(); applyTheme(); scheduleReminder(); checkCelebrate(true); render(); haptic("success");
+  toast(`Restored: ${added} new, ${updated} updated`);
 }
-
 function loadDemo(){
   const end = dnum(todayStr()); let w = 86;
-  for (let i = 120; i >= 0; i--){ if (Math.random() < 0.15) continue; w += -0.06 + (Math.random()-0.5)*0.15; const noise = (Math.random()-0.5)*1.2;
-    S.entries.push({ id:"demo"+i, date: fromDnum(end - i), kg: Math.round((w+noise)*10)/10, note: i===60?"Demo data":"" }); }
-  S.settings.goal = 78; sortEntries(); save(); render(); toast("Demo data loaded. Erase it in Settings when you're ready.");
+  for (let i = 120; i >= 0; i--){ if (Math.random() < 0.15) continue; w += -0.06 + (Math.random() - .5)*0.15; const noise = (Math.random() - .5)*1.2;
+    S.entries.push({ id: "demo" + i, date: fromDnum(end - i), kg: Math.round((w + noise)*10)/10, note: i === 60 ? "Demo data" : "", fat: Math.round((25 - (120 - i)*0.02 + (Math.random() - .5))*10)/10 }); }
+  S.settings.goal = 78; S.settings.goalSince = fromDnum(end - 120); S.settings.commit = 0.5;
+  sortEntries(); resetCelebrations(); save(); render(true); toast("Demo data loaded. Erase it in Settings.");
 }
 
+/* ---------- toast ---------- */
 let toastT;
-function toast(msg){ let t = $(".toast"); if (!t){ t = document.createElement("div"); t.className = "toast"; t.setAttribute("role","status"); document.body.appendChild(t); }
-  t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+function toast(msg, action){
+  let t = $(".toast"); if (!t){ t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.innerHTML = `<span>${esc(msg)}</span>${action ? `<button>${esc(action.label)}</button>` : ""}`; t.hidden = false;
+  if (action) t.querySelector("button").onclick = () => { t.hidden = true; action.fn(); };
+  clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, action ? 4500 : 2600);
+}
 
 /* ---------- boot ---------- */
 load(); applyTheme();
-document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab===tab)));
+document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
 render();
 if (NATIVE){ syncHealth(false); scheduleReminder(); }
-if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
+checkCelebrate(S.settings.celebrated == null);
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
 </script>
 </body>
 </html>

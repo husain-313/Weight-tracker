@@ -2,8 +2,14 @@ import SwiftUI
 import WebKit
 import HealthKit
 import UserNotifications
+import LocalAuthentication
 
-private let appBackground = UIColor(red: 17/255, green: 21/255, blue: 28/255, alpha: 1)
+/// Matches the page background in both themes so there is never a flash on launch or rotation.
+let appBackground = UIColor { traits in
+    traits.userInterfaceStyle == .dark
+        ? UIColor(red: 14/255, green: 17/255, blue: 22/255, alpha: 1)
+        : UIColor(red: 242/255, green: 243/255, blue: 247/255, alpha: 1)
+}
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
@@ -18,15 +24,90 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 struct TrendlineApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var lock = LockManager()
 
     var body: some Scene {
         WindowGroup {
-            WebView()
-                .ignoresSafeArea()
-                .background(Color(appBackground))
+            ZStack {
+                WebView()
+                    .ignoresSafeArea()
+                    .background(Color(appBackground))
+                if lock.locked || lock.covered {
+                    LockView(lock: lock).transition(.opacity)
+                }
+            }
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active { Bridge.shared.foreground() }
+            switch phase {
+            case .active:
+                lock.covered = false
+                if lock.locked { lock.authenticate() } else { Bridge.shared.foreground() }
+            case .inactive:
+                if lock.enabled && !lock.authenticating { lock.covered = true }
+            case .background:
+                lock.lockIfEnabled()
+            @unknown default:
+                break
+            }
+        }
+    }
+}
+
+/// Face ID / passcode lock. Hides the data in the app switcher and asks to unlock on return.
+final class LockManager: ObservableObject {
+    @Published var locked: Bool
+    @Published var covered = false
+    @Published private(set) var authenticating = false
+
+    init() { locked = Bridge.shared.lockEnabled() }
+    var enabled: Bool { Bridge.shared.lockEnabled() }
+
+    func lockIfEnabled() { if enabled { locked = true } }
+
+    func authenticate() {
+        guard locked, !authenticating else { return }
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            locked = false
+            Bridge.shared.foreground()
+            return
+        }
+        authenticating = true
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock your weight data") { ok, _ in
+            DispatchQueue.main.async {
+                self.authenticating = false
+                if ok {
+                    withAnimation(.easeOut(duration: 0.2)) { self.locked = false; self.covered = false }
+                    Bridge.shared.foreground()
+                }
+            }
+        }
+    }
+}
+
+struct LockView: View {
+    @ObservedObject var lock: LockManager
+    var body: some View {
+        ZStack {
+            Color(appBackground).ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 42, weight: .semibold))
+                    .foregroundColor(.secondary)
+                Text("Trendline is locked")
+                    .font(.system(.title3, design: .rounded).weight(.semibold))
+                if lock.locked && !lock.authenticating {
+                    Button(action: { lock.authenticate() }) {
+                        Text("Unlock")
+                            .font(.headline)
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 12)
+                            .background(Capsule().fill(Color.secondary.opacity(0.18)))
+                    }
+                    .foregroundColor(.primary)
+                }
+            }
         }
     }
 }
@@ -45,6 +126,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private var readTypes: Set<HKObjectType> { [massType, fatType, leanType] }
     private var observing = false
     private let stateLock = NSLock()
+    private var themeStyle: UIUserInterfaceStyle = .unspecified
     private let backupQueue = DispatchQueue(label: "trendline.backup")
 
     // MARK: Files
@@ -81,6 +163,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         try? data.write(to: stateURL, options: .atomic)
         stateLock.unlock()
         backupQueue.async { self.writeBackups(data) }
+    }
+
+    func lockEnabled() -> Bool {
+        guard let text = loadState(),
+              let object = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else { return false }
+        return settings(of: object)["lock"] as? Bool == true
     }
 
     /// Hands the page the saved state (it may have changed in the background), then refreshes.
@@ -132,7 +220,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         case "share":
             if let body = message.body as? [String: Any],
                let name = body["name"] as? String, let text = body["text"] as? String {
-                share(name: name, text: text)
+                share(name: name, data: Data(text.utf8))
             }
         case "native":
             guard let body = message.body as? [String: Any], let cmd = body["cmd"] as? String else { return }
@@ -156,6 +244,39 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             if let date = body["date"] as? String { healthReplace(date: date, kg: nil) }
         case "notifyAuth":
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        case "haptic":
+            let kind = body["kind"] as? String ?? "light"
+            DispatchQueue.main.async {
+                switch kind {
+                case "success": UINotificationFeedbackGenerator().notificationOccurred(.success)
+                case "warning": UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                case "selection": UISelectionFeedbackGenerator().selectionChanged()
+                case "medium": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+            }
+        case "shareImage":
+            if let name = body["name"] as? String, let url = body["data"] as? String,
+               let comma = url.firstIndex(of: ","),
+               let data = Data(base64Encoded: String(url[url.index(after: comma)...])) {
+                share(name: name, data: data)
+            }
+        case "theme":
+            let mode = body["mode"] as? String ?? "auto"
+            themeStyle = mode == "dark" ? .dark : mode == "light" ? .light : .unspecified
+            applyTheme()
+        case "lockSet":
+            let enable = body["enabled"] as? Bool ?? false
+            let context = LAContext()
+            var error: NSError?
+            guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+                send("lock-result", ["enabled": enable, "ok": false, "reason": "unavailable"])
+                return
+            }
+            let reason = enable ? "Turn on the Face ID lock" : "Turn off the Face ID lock"
+            context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { ok, _ in
+                self.send("lock-result", ["enabled": enable, "ok": ok])
+            }
         case "reminder":
             reminder(enabled: body["enabled"] as? Bool ?? false,
                      hour: (body["hour"] as? NSNumber)?.intValue ?? 7,
@@ -411,9 +532,19 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     // MARK: Share sheet
 
-    private func share(name: String, text: String) {
+    private func applyTheme() {
+        DispatchQueue.main.async {
+            self.webView?.window?.overrideUserInterfaceStyle = self.themeStyle
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        applyTheme()
+    }
+
+    private func share(name: String, data: Data) {
         let url = fm.temporaryDirectory.appendingPathComponent(name)
-        try? text.write(to: url, atomically: true, encoding: .utf8)
+        try? data.write(to: url, options: .atomic)
         DispatchQueue.main.async {
             let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
             guard var top = self.webView?.window?.rootViewController else { return }
@@ -493,6 +624,8 @@ struct WebView: UIViewRepresentable {
         webView.scrollView.backgroundColor = appBackground
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.allowsBackForwardNavigationGestures = false
+        webView.scrollView.keyboardDismissMode = .interactive
+        if #available(iOS 16.4, *) { webView.isInspectable = false }
         webView.navigationDelegate = bridge
         bridge.webView = webView
 
