@@ -298,7 +298,7 @@ const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webki
 const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", energy:"Energy balance", activity:"Activity", fitness:"Fitness", body:"Body composition", records:"Records", bmi:"Body mass index" };
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", accent:"teal", step:null, chartRange:90, reportMode:"monthly",
   healthRead:false, healthWrite:false, healthSince:null, healthFrom:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
-  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false, dayMode:"awake", dayCutoff:5,
+  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false, dayMode:"awake", dayCutoff:5, dayStarts:{}, sleepAsked:false,
   models:{ gemini:"gemini-2.5-flash", groq:"llama-3.3-70b-versatile", claude:"claude-haiku-5-5" } };
 let S = { entries:[], settings:{...DEFAULTS}, food:{}, foodCache:{}, activity:null };
 
@@ -310,6 +310,7 @@ function normalize(){
   s.cols = { trend:true, rate:true, ...(s.cols || {}) };
   if (!Array.isArray(s.healthIgnore)) s.healthIgnore = [];
   s.models = { ...DEFAULTS.models, ...(s.models || {}) };
+  s.dayStarts = s.dayStarts && typeof s.dayStarts === "object" ? { ...s.dayStarts } : {};
   if (!S.food || typeof S.food !== "object") S.food = {};
   if (!S.foodCache || typeof S.foodCache !== "object") S.foodCache = {};
 }
@@ -467,7 +468,7 @@ window.__native = function(event, p){
   else if (event === "key-status"){ const changed = JSON.stringify(p) !== JSON.stringify(keyStatus); keyStatus = p; if (changed && tab === "settings") render(); }
   else if (event === "activity"){
     if (p.error){ toast("Apple Health is not available on this device."); return; }
-    ACT_RAW = { updated: Date.now(), stepsT: p.stepsT || [], activeT: p.activeT || [], basalT: p.basalT || [], wakes: p.wakes || [],
+    ACT_RAW = { updated: Date.now(), stepsT: p.stepsT || [], activeT: p.activeT || [], basalT: p.basalT || [], wakes: p.wakes || [], sleeps: p.sleeps || [],
       steps: p.steps || {}, active: p.active || {}, basal: p.basal || {}, rhr: p.rhr || {}, vo2: p.vo2 || {}, workouts: p.workouts || [] };
     rebuildActivity(); save();
     const cur = currentLabel(); if (foodDay > cur) foodDay = cur;
@@ -768,7 +769,13 @@ const CARDS = {
     const cur = currentLabel(), bars = lastDays(13, 0).concat([cur]);
     const mx = Math.max(1, ...bars.map(d => A.steps[d] || 0));
     const types = [...new Set(wo.map(w => w.type))].slice(0, 3).join(", ");
-    return `<section class="card"><div class="card-h"><h2>Activity</h2><span class="lbl">Last 7 days</span></div>
+    let startLine = "";
+    if (S.settings.dayMode !== "calendar"){
+      const cur = currentLabel(), st = dayStarts(fromDnum(dnum(cur) - 1)).find(x => x.label === cur);
+      if (st) startLine = `<button class="row" id="dsEdit" style="width:100%;background:var(--surface-2);border-radius:12px;padding:10px 12px;align-items:center">
+        <span class="k" style="font-size:14px">Today started <b style="color:var(--fg)">${new Date(st.t).toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit" })}</b> · from ${START_SRC[st.src]}</span><span class="link" style="font-size:14px">Edit</span></button>`;
+    }
+    return `<section class="card"><div class="card-h"><h2>Activity</h2><span class="lbl">Last 7 days</span></div>${startLine}
       <div class="rgrid">
         <div class="rbox"><div class="k">Steps a day</div><div class="v num">${st == null ? "—" : Math.round(st).toLocaleString("en-US")}</div>${delta(st, stP, "")}</div>
         <div class="rbox"><div class="k">Active energy</div><div class="v num">${ac == null ? "—" : Math.round(ac).toLocaleString("en-US")} <small style="font-size:13px;color:var(--muted)">kcal</small></div>${delta(ac, acP, " kcal")}</div>
@@ -825,6 +832,7 @@ function bindSummary(rows){
   on("glSet", openGoalSheet); on("glSet2", openGoalSheet);
   on("bmiSet", () => setTab("settings"));
   on("actOn", enableActivity);
+  on("dsEdit", openDayStarts);
   if ($("#chart")) mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange);
   drawFatSpark();
 }
@@ -1212,21 +1220,25 @@ function openColumns(){
 // whichever came first; with neither, a fallback hour.
 let ACT_RAW = null;
 const localDate = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+// Start of each day, most reliable first: your edit › end of the night's sleep (watch) › morning weigh-in
+// (or the watch going back on shortly before it) › watch back on after 4+ hours off › fallback hour.
+const START_SRC = { edit:"your edit", sleep:"sleep data", weigh:"your weigh-in", watch:"putting on your watch", fallback:"the fallback time" };
 function dayStarts(fromDate){
-  const cutoff = S.settings.dayCutoff ?? 5, wakes = (ACT_RAW && ACT_RAW.wakes) || [];
+  const cutoff = S.settings.dayCutoff ?? 5, raw = ACT_RAW || {}, wakes = raw.wakes || [], sleeps = raw.sleeps || [], edits = S.settings.dayStarts || {};
   const weigh = {}; for (const e of S.entries) if (e.t) weigh[e.date] = Math.min(weigh[e.date] ?? Infinity, e.t);
-  const wakeBy = {};
-  for (let i = 0; i < wakes.length; i++){ const t = wakes[i], d = localDate(t); (wakeBy[d] || (wakeBy[d] = [])).push(t); }
+  const wakeBy = {}; for (const t of wakes){ const d = localDate(t); (wakeBy[d] || (wakeBy[d] = [])).push(t); }
+  const sleepBy = {}; for (const [a, b] of sleeps){ const d = localDate(b); if (!sleepBy[d] || b - a > sleepBy[d].len) sleepBy[d] = { t: b, len: b - a }; }
   const out = [], end = todayStr();
   for (let n = dnum(fromDate); n <= dnum(end); n++){
     const d = fromDnum(n), w = weigh[d], ws = wakeBy[d] || [];
-    let t = null;
-    if (w != null){ const before = ws.filter(x => x <= w && w - x < 4*3600e3); t = before.length ? Math.min(...before) : w; }
-    else if (ws.length) t = Math.min(...ws);
+    let t = null, src = "fallback";
+    if (edits[d] != null){ t = edits[d]; src = "edit"; }
+    else if (sleepBy[d]){ t = sleepBy[d].t; src = "sleep"; }
+    else if (w != null){ const before = ws.filter(x => x <= w && w - x < 4*3600e3); if (before.length){ t = Math.min(...before); src = "watch"; } else { t = w; src = "weigh"; } }
+    else if (ws.length){ t = Math.min(...ws); src = "watch"; }
     else { const [y,m,dd] = d.split("-").map(Number); t = new Date(y, m-1, dd, cutoff, 0, 0).getTime(); }
-    out.push({ label: d, t });
+    out.push({ label: d, t, src });
   }
-  // keep starts increasing (a very late fallback must not come after the next real start)
   for (let i = out.length - 2; i >= 0; i--) if (out[i].t >= out[i+1].t) out[i].t = out[i+1].t - 60e3;
   return out;
 }
@@ -1261,11 +1273,37 @@ function rebuildActivity(){
 const avg = a => a.reduce((s,v) => s + v, 0)/a.length;
 // `n` calendar days ending the day before today, shifted back by `skip` days
 function lastDays(n, skip){ const t = dnum(currentLabel()) - 1 - (skip || 0); return Array.from({length: n}, (_, i) => fromDnum(t - (n - 1 - i))); }
-function enableActivity(){ S.settings.actRead = true; save(); nativeCmd("activityAuthorize"); haptic("light"); toast("Reading activity from Apple Health…"); render(); }
+function enableActivity(){ S.settings.actRead = true; S.settings.sleepAsked = true; save(); nativeCmd("activityAuthorize"); haptic("light"); toast("Reading activity from Apple Health…"); render(); }
 function syncActivity(force){
   if (!NATIVE || !S.settings.actRead) return;
   if (!force && ACT_RAW && Date.now() - ACT_RAW.updated < 10*60*1000) return;
   nativeCmd("activityRead", { days: 60 });
+}
+
+function openDayStarts(){
+  haptic("light");
+  const cur = currentLabel();
+  const draw = () => {
+    const list = dayStarts(fromDnum(dnum(cur) - 7)).filter(x => x.label <= cur).reverse().slice(0, 7);
+    return `<div class="sheet-h"><span style="width:52px"></span><h2>When your days started</h2><button class="link" data-x>Done</button></div>
+      <p class="note">Each day runs from when you wake up to the next time you wake. Fix any day that looks wrong.</p>
+      <div class="list">${list.map(x => { const tm = new Date(x.t); return `<label class="item"><span class="k">${dayLabel(x.label)}<span class="h">From ${START_SRC[x.src]}${x.src === "edit" ? ` · <button class="link" style="font-size:13px" data-reset="${x.label}">Reset</button>` : ""}</span></span>
+        <input type="time" data-day="${x.label}" value="${pad(tm.getHours())}:${pad(tm.getMinutes())}" style="background:transparent;border:0;color:var(--accent);font-size:17px;width:auto"></label>`; }).join("")}</div>
+      <p class="note" style="font-size:13px">Most accurate when you wear your Apple Watch to sleep with sleep tracking on, or weigh in as soon as you wake.</p>`;
+  };
+  const sh = openSheet(draw());
+  const bind = () => {
+    sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet);
+    sh.querySelectorAll("[data-day]").forEach(inp => inp.onchange = () => {
+      if (!/^\d{2}:\d{2}$/.test(inp.value)) return;
+      const [y, m, d] = inp.dataset.day.split("-").map(Number), [hh, mm] = inp.value.split(":").map(Number);
+      S.settings.dayStarts[inp.dataset.day] = new Date(y, m-1, d, hh, mm).getTime();
+      rebuildActivity(); save(); haptic("success"); refresh();
+    });
+    sh.querySelectorAll("[data-reset]").forEach(b => b.onclick = ev => { ev.preventDefault(); delete S.settings.dayStarts[b.dataset.reset]; rebuildActivity(); save(); haptic("light"); refresh(); });
+  };
+  const refresh = () => { const g = sh.querySelector(".grab").outerHTML; sh.innerHTML = g + draw(); bind(); render(); };
+  bind();
 }
 
 /* ---------- AI + network plumbing ---------- */
@@ -1610,7 +1648,7 @@ function renderSettings(head){
       ${tgl("hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
       ${s.healthRead ? `<label class="item"><span class="k">Import from<span class="h">Older readings in Apple Health are ignored</span></span><input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}" style="background:transparent;border:0;color:var(--accent);font-size:17px;width:auto"></label>` : ""}
       ${s.healthRead ? tgl("hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
-      ${tgl("aw", s.actRead, "Activity from Apple Watch", "Steps, energy burned, workouts, resting heart rate and VO₂ max")}
+      ${tgl("aw", s.actRead, "Activity from Apple Watch", "Steps, energy burned, workouts, sleep, resting heart rate and VO₂ max")}
       ${s.healthRead ? `<button class="item" id="hs"><span class="k">Check now</span><span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
     </div>
     <div class="group-t">Daily reminder</div><div class="list">
@@ -1753,7 +1791,10 @@ function toast(msg, action){
 load(); applyTheme(); foodDay = currentLabel();
 document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
 render();
-if (NATIVE){ syncHealth(false); syncActivity(true); scheduleReminder(); nativeCmd("keyStatus"); }
+if (NATIVE){
+  syncHealth(false); scheduleReminder(); nativeCmd("keyStatus");
+  if (S.settings.actRead && !S.settings.sleepAsked){ S.settings.sleepAsked = true; save(); nativeCmd("activityAuthorize"); } else syncActivity(true);
+}
 checkCelebrate(S.settings.celebrated == null);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { applyTheme(); render(); });
 </script>

@@ -616,6 +616,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     private var activityTypes: Set<HKObjectType> {
         var set: Set<HKObjectType> = [HKObjectType.workoutType()]
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { set.insert(sleep) }
         for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .basalEnergyBurned, .restingHeartRate, .vo2Max, .heartRate] {
             if let t = HKQuantityType.quantityType(forIdentifier: id) { set.insert(t) }
         }
@@ -717,6 +718,28 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             }
             lock.lock(); wakes = found; lock.unlock(); group.leave()
         }
+        // Sleep sessions: asleep samples joined when less than 90 minutes apart; 3+ hours counts as a night's sleep.
+        var sleeps: [[Double]] = []
+        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            group.enter()
+            let since = Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+            let sq = HKSampleQuery(sampleType: sleepType, predicate: HKQuery.predicateForSamples(withStart: since, end: nil, options: []),
+                                   limit: HKObjectQueryNoLimit,
+                                   sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, _ in
+                let asleep: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                                        HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue]
+                var sessions: [[Double]] = []
+                for case let sample as HKCategorySample in samples ?? [] where asleep.contains(sample.value) {
+                    let a = sample.startDate.timeIntervalSince1970 * 1000, b = sample.endDate.timeIntervalSince1970 * 1000
+                    if var last = sessions.last, a - last[1] < 90 * 60 * 1000 {
+                        last[1] = max(last[1], b); sessions[sessions.count - 1] = last
+                    } else { sessions.append([a, b]) }
+                }
+                lock.lock(); sleeps = sessions.filter { $0[1] - $0[0] >= 3 * 3600 * 1000 }.map { [$0[0].rounded(), $0[1].rounded()] }; lock.unlock()
+                group.leave()
+            }
+            health.execute(sq)
+        }
         var workouts: [[String: Any]] = []
         group.enter()
         let start = Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
@@ -731,7 +754,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         }
         health.execute(wq)
         group.notify(queue: .global()) {
-            var payload: [String: Any] = ["workouts": workouts, "wakes": wakes]
+            var payload: [String: Any] = ["workouts": workouts, "wakes": wakes, "sleeps": sleeps]
             for (k, v) in result { payload[k] = v }
             for (k, v) in series { payload[k] = v }
             self.send("activity", payload)

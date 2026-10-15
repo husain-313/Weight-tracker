@@ -61,7 +61,7 @@ jobs:
           XC=$(xcodebuild -version | head -1)
           if [ -d "$(xcrun --sdk iphoneos --show-sdk-path)/System/Library/Frameworks/FoundationModels.framework" ]; then FM=yes; else FM=no; fi
           cat > ios/release-notes.md <<NOTES
-          Version 1.5: days now run from when you wake up (your morning weigh-in, or putting your watch on after sleep), so late-night steps, energy, workouts and food count toward the day you woke up; switch back to midnight in Settings. Includes 1.4: optional AI food log (write meals in Gulf Arabic or English; Gemini understands, Groq checks, USDA supplies values, the app does the maths; Claude optional, Apple Intelligence offline fallback), barcode scanning via Open Food Facts, Apple Watch activity, fitness and energy balance cards.
+          Version 1.6: your day now starts when Apple Watch sleep tracking says you woke up (most accurate when you sleep with the watch); the Activity card shows when today started and where that came from, and you can correct any of the last 7 days. Includes 1.5: days now run from when you wake up (your morning weigh-in, or putting your watch on after sleep), so late-night steps, energy, workouts and food count toward the day you woke up; switch back to midnight in Settings. Includes 1.4: optional AI food log (write meals in Gulf Arabic or English; Gemini understands, Groq checks, USDA supplies values, the app does the maths; Claude optional, Apple Intelligence offline fallback), barcode scanning via Open Food Facts, Apple Watch activity, fitness and energy balance cards.
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK. Apple Intelligence offline fallback included: $FM.
@@ -71,6 +71,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 1.5 (build ${{ github.run_number }})
+          name: Trendline 1.6 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa
