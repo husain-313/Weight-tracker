@@ -340,10 +340,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     /// First reading of each day from other apps and scales: weight, body fat % and lean mass.
     private func fetchDays(since: Date, completion: @escaping ([String: [String: Double]], Error?) -> Void) {
-        fetchDaysDetailed(since: since) { days, _, error in completion(days, error) }
+        fetchDaysDetailed(since: since) { days, _, _, error in completion(days, error) }
     }
 
-    private func fetchDaysDetailed(since: Date, completion: @escaping ([String: [String: Double]], [[Double]], Error?) -> Void) {
+    /// days: first reading per calendar day from other apps; weights: every weight from other apps;
+    /// own: weights this app wrote (used to restore entries after a reinstall or erase).
+    private func fetchDaysDetailed(since: Date, completion: @escaping ([String: [String: Double]], [[Double]], [[Double]], Error?) -> Void) {
         let mine = HKSource.default()
         let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: [])
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -351,6 +353,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         let lock = NSLock()
         var days: [String: [String: Double]] = [:]
         var weights: [[Double]] = []
+        var own: [[Double]] = []
         var firstError: Error?
         let specs: [(HKQuantityType, String, HKUnit, Double)] = [
             (massType, "kg", .gramUnit(with: .kilo), 1),
@@ -364,7 +367,13 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 lock.lock()
                 if let error = error, key == "kg" { firstError = error }
                 for case let sample as HKQuantitySample in samples ?? [] {
-                    if sample.sourceRevision.source == mine { continue }
+                    if sample.sourceRevision.source == mine {
+                        if key == "kg" {
+                            own.append([(sample.startDate.timeIntervalSince1970 * 1000).rounded(),
+                                        (sample.quantity.doubleValue(for: unit) * 1000).rounded() / 1000])
+                        }
+                        continue
+                    }
                     if key == "kg" {
                         let kg = sample.quantity.doubleValue(for: unit)
                         weights.append([(sample.startDate.timeIntervalSince1970 * 1000).rounded(), (kg * 1000).rounded() / 1000])
@@ -381,12 +390,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             }
             health.execute(query)
         }
-        group.notify(queue: .global()) { completion(days, weights.sorted { $0[0] < $1[0] }, firstError) }
+        group.notify(queue: .global()) { completion(days, weights.sorted { $0[0] < $1[0] }, own.sorted { $0[0] < $1[0] }, firstError) }
     }
 
     private func healthRead(since: String) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        fetchDaysDetailed(since: Bridge.date(since) ?? .distantPast) { days, weights, error in
+        fetchDaysDetailed(since: Bridge.date(since) ?? .distantPast) { days, weights, own, error in
             if let error = error as NSError?,
                error.code != HKError.Code.errorAuthorizationNotDetermined.rawValue,
                error.code != HKError.Code.errorAuthorizationDenied.rawValue {
@@ -398,7 +407,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 for (k, v) in values { item[k] = v }
                 return item
             }
-            self.send("health-samples", ["samples": list, "weights": weights])
+            self.send("health-samples", ["samples": list, "weights": weights, "own": own])
         }
     }
 

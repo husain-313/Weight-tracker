@@ -484,7 +484,7 @@ function applyTheme(){
 let backupInfo = null;
 window.__native = function(event, p){
   p = p || {};
-  if (event === "health-samples") mergeHealth(firstAfterWake(p.samples || [], p.weights || []), p.error);
+  if (event === "health-samples") mergeHealth(firstAfterWake(p.samples || [], p.weights || []), p.error, p.own || []);
   else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab === "settings") render(); } else syncHealth(true); }
   else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings."); if (tab === "settings") render(); }
   else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
@@ -548,10 +548,20 @@ function firstAfterWake(samples, weights){
   for (const d of Object.keys(byDate)) if (!picked.has(d) && byDate[d].kg && weights.some(w => localDate(w[0]) === d)) delete byDate[d].kg;
   return Object.values(byDate);
 }
-function mergeHealth(samples, error){
-  if (error){ toast("Could not read from Apple Health."); return; }
+let connectPending = false;
+function mergeHealth(samples, error, own){
+  if (error){ toast("Could not read from Apple Health."); connectPending = false; return; }
   const ignore = new Set(S.settings.healthIgnore || []);
   let added = 0, changed = 0;
+  // Weigh-ins this app saved to Health earlier but no longer has (after a reinstall or "Erase all data"): bring them back.
+  // Days you deleted in the app are in the ignore list and stay deleted.
+  const ownByDay = {};
+  for (const [t, kg] of own || []){ const d = localDate(t); if (!ownByDay[d] || t > ownByDay[d].t) ownByDay[d] = { t, kg }; }
+  for (const [d, w] of Object.entries(ownByDay)){
+    if (ignore.has(d) || (S.settings.healthFrom && d < S.settings.healthFrom) || !(w.kg > 20 && w.kg < 400)) continue;
+    if (S.entries.some(e => e.date === d) || samples.some(x => x.date === d && x.kg)) continue;
+    S.entries.push({ id: "r" + d, date: d, kg: w.kg, note: "", t: w.t, restored: true }); added++;
+  }
   for (const smp of samples){
     if (!smp || !smp.date || ignore.has(smp.date) || (S.settings.healthFrom && smp.date < S.settings.healthFrom)) continue;
     const hasKg = smp.kg > 20 && smp.kg < 400;
@@ -568,7 +578,11 @@ function mergeHealth(samples, error){
     render(); scheduleReminder();
     if (added) toast(`Added ${added} weigh-in${added > 1 ? "s" : ""} from Apple Health`);
     checkCelebrate(added > 3);
-  } else if (tab === "settings") render();
+  } else {
+    if (connectPending) toast(`Apple Health connected ✓ No weigh-ins since ${fmtDate(S.settings.healthFrom || todayStr())} yet.`);
+    render();
+  }
+  connectPending = false;
 }
 function scheduleReminder(){
   if (!NATIVE) return;
@@ -578,7 +592,7 @@ function scheduleReminder(){
   nativeCmd("reminder", { enabled: !!S.settings.remind, hour: isNaN(h) ? 7 : h, minute: isNaN(m) ? 30 : m, weighedToday: S.entries.some(e => e.date === todayStr()), body });
 }
 function connectHealth(){
-  S.settings.healthRead = true; if (!S.settings.healthFrom) S.settings.healthFrom = todayStr(); save();
+  S.settings.healthRead = true; if (!S.settings.healthFrom) S.settings.healthFrom = todayStr(); save(); connectPending = true;
   nativeCmd("healthAuthorize", { write: S.settings.healthWrite });
   if (S.settings.notifyWeigh !== false) nativeCmd("notifyAuth");
   toast("Checking Apple Health…");
@@ -674,13 +688,15 @@ function renderEmpty(head){
     <p>Weigh in each morning. Trendline smooths out daily water swings and shows the direction you're really heading.</p>
     <div class="btns" style="width:100%;max-width:340px;flex-direction:column">
       <button class="btn primary" id="e1">Add a weigh-in</button>
-      ${NATIVE ? `<button class="btn" id="e2">Connect Apple Health</button>` : ""}
+      ${NATIVE ? (S.settings.healthRead
+        ? `<button class="btn" id="e2" style="color:var(--good)">✓ Apple Health connected</button><p class="lbl" style="margin:-4px 0 0">Importing weigh-ins from ${fmtDate(S.settings.healthFrom || todayStr())}. Tap to check again.</p>`
+        : `<button class="btn" id="e2">Connect Apple Health</button>`) : ""}
     </div>
     <button class="link" id="e4">Restore a backup</button>
     <button class="link" id="e3" style="color:var(--muted);font-weight:500">Try with demo data</button>
   </section>`;
   $("#e1").onclick = () => openEntry();
-  const e2 = $("#e2"); if (e2) e2.onclick = connectHealth;
+  const e2 = $("#e2"); if (e2) e2.onclick = () => { if (S.settings.healthRead){ connectPending = true; syncHealth(true); toast("Checking Apple Health…"); } else connectHealth(); };
   $("#e3").onclick = loadDemo;
   $("#e4").onclick = pickRestore;
 }
@@ -1141,12 +1157,12 @@ view.addEventListener("touchend", () => {
   else { row.style.transform = ""; if (swipeOpen === row) swipeOpen = null; }
 });
 function deleteEntry(entry){
-  if (entry.src === "health") S.settings.healthIgnore = [...new Set([...S.settings.healthIgnore, entry.date])];
-  else if (S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
+  S.settings.healthIgnore = [...new Set([...S.settings.healthIgnore, entry.date])];
+  if (entry.src !== "health" && S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
   S.entries = S.entries.filter(e => e !== entry); rebuildActivity(); save(); haptic("warning"); swipeOpen = null; render(); scheduleReminder();
   toast("Weigh-in deleted", { label: "Undo", fn: () => {
-    if (entry.src === "health") S.settings.healthIgnore = S.settings.healthIgnore.filter(d => d !== entry.date);
-    else if (S.settings.healthWrite) nativeCmd("healthWrite", { date: entry.date, kg: entry.kg });
+    S.settings.healthIgnore = S.settings.healthIgnore.filter(d => d !== entry.date);
+    if (entry.src !== "health" && S.settings.healthWrite) nativeCmd("healthWrite", { date: entry.date, kg: entry.kg });
     if (!S.entries.some(e => e.date === entry.date)) S.entries.push(entry);
     sortEntries(); save(); render(); scheduleReminder();
   }});

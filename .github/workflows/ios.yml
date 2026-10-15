@@ -61,12 +61,9 @@ jobs:
           XC=$(xcodebuild -version | head -1)
           if [ -d "$(xcrun --sdk iphoneos --show-sdk-path)/System/Library/Frameworks/FoundationModels.framework" ]; then FM=yes; else FM=no; fi
           cat > ios/release-notes.md <<NOTES
-          Version 1.7:
-          - The weigh-in that counts is the first one after you wake, so a late-night reading no longer replaces the morning one
-          - Unusual weigh-ins (2 kg or more off your trend) wait for you to keep or ignore them
-          - Logbook notes weigh-ins taken more than 2 hours after waking
-          - Your real daily burn, worked out from logged food and your weight change, compared with the watch
-          - The app checks for updates and offers the download link
+          Version 1.7.1:
+          - Connect Apple Health now shows that it's connected and when it's importing from
+          - Weigh-ins this app saved to Health earlier come back after a reinstall or erase (days you deleted stay deleted)
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK. Apple Intelligence offline fallback included: $FM.
@@ -76,6 +73,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 1.7 (build ${{ github.run_number }})
+          name: Trendline 1.7.1 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa
