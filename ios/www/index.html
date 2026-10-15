@@ -298,7 +298,7 @@ const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webki
 const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", energy:"Energy balance", activity:"Activity", fitness:"Fitness", body:"Body composition", records:"Records", bmi:"Body mass index" };
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", accent:"teal", step:null, chartRange:90, reportMode:"monthly",
   healthRead:false, healthWrite:false, healthSince:null, healthFrom:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
-  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false,
+  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false, dayMode:"awake", dayCutoff:5,
   models:{ gemini:"gemini-2.5-flash", groq:"llama-3.3-70b-versatile", claude:"claude-haiku-5-5" } };
 let S = { entries:[], settings:{...DEFAULTS}, food:{}, foodCache:{}, activity:null };
 
@@ -460,15 +460,18 @@ window.__native = function(event, p){
   else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab === "settings") render(); } else syncHealth(true); }
   else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings."); if (tab === "settings") render(); }
   else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
-  else if (event === "foreground"){ syncHealth(false); syncActivity(false); scheduleReminder(); if (tab !== "settings") render(); }
+  else if (event === "foreground"){ syncHealth(false); syncActivity(false); scheduleReminder(); foodDay = currentLabel(); if (tab !== "settings") render(); }
   else if (event === "toast") toast(p.text || "");
   else if (event === "http-result"){ const w = httpWait[p.id]; if (w){ delete httpWait[p.id]; p.error ? w.reject(new Error(p.error)) : w.resolve(p); } }
   else if (event === "local-ai"){ const w = localWait[p.id]; if (w){ delete localWait[p.id]; p.ok ? w.resolve(p.text || "") : w.reject(new Error(p.error || "unavailable")); } }
   else if (event === "key-status"){ const changed = JSON.stringify(p) !== JSON.stringify(keyStatus); keyStatus = p; if (changed && tab === "settings") render(); }
   else if (event === "activity"){
     if (p.error){ toast("Apple Health is not available on this device."); return; }
-    S.activity = { updated: Date.now(), steps: p.steps || {}, active: p.active || {}, basal: p.basal || {}, rhr: p.rhr || {}, vo2: p.vo2 || {}, workouts: p.workouts || [] };
-    save(); if (tab === "summary" || tab === "food") render();
+    ACT_RAW = { updated: Date.now(), stepsT: p.stepsT || [], activeT: p.activeT || [], basalT: p.basalT || [], wakes: p.wakes || [],
+      steps: p.steps || {}, active: p.active || {}, basal: p.basal || {}, rhr: p.rhr || {}, vo2: p.vo2 || {}, workouts: p.workouts || [] };
+    rebuildActivity(); save();
+    const cur = currentLabel(); if (foodDay > cur) foodDay = cur;
+    if (tab === "summary" || tab === "food") render();
   }
   else if (event === "barcode"){ if (p.code) onBarcode(p.code); else if (p.error === "camera-denied") toast("Allow camera access for Trendline in iOS Settings."); else if (p.error) toast("Barcode scanning isn't available on this device."); }
   else if (event === "lock-result"){
@@ -507,12 +510,13 @@ function mergeHealth(samples, error){
     const hasKg = smp.kg > 20 && smp.kg < 400;
     let ex = S.entries.find(e => e.date === smp.date);
     if (!ex){ if (!hasKg) continue; ex = { id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }; S.entries.push(ex); added++; }
+    if (smp.t && !ex.t) ex.t = smp.t;
     else if (hasKg && ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
     if (smp.fat > 1 && smp.fat < 75 && ex.fat !== smp.fat){ ex.fat = smp.fat; changed++; }
     if (smp.lean > 10 && smp.lean < 200 && ex.lean !== smp.lean){ ex.lean = smp.lean; changed++; }
   }
   S.settings.healthSince = todayStr();
-  sortEntries(); save();
+  sortEntries(); rebuildActivity(); save();
   if (added || changed){
     render(); scheduleReminder();
     if (added) toast(`Added ${added} weigh-in${added > 1 ? "s" : ""} from Apple Health`);
@@ -761,7 +765,7 @@ const CARDS = {
     const st = avgOf(A.steps, wk), stP = avgOf(A.steps, prev), ac = avgOf(A.active, wk), acP = avgOf(A.active, prev);
     const wo = (A.workouts || []).filter(w => wk.includes(w.date)), woMin = wo.reduce((s,w) => s + (w.min || 0), 0);
     const delta = (a, b, unit) => a == null || b == null ? "" : `<div class="s"><b style="color:var(--${a >= b ? "good" : "bad"})">${a >= b ? "↑" : "↓"} ${Math.round(Math.abs(a - b)).toLocaleString("en-US")}${unit}</b> vs last week</div>`;
-    const bars = lastDays(13, 0).concat([todayStr()]);
+    const cur = currentLabel(), bars = lastDays(13, 0).concat([cur]);
     const mx = Math.max(1, ...bars.map(d => A.steps[d] || 0));
     const types = [...new Set(wo.map(w => w.type))].slice(0, 3).join(", ");
     return `<section class="card"><div class="card-h"><h2>Activity</h2><span class="lbl">Last 7 days</span></div>
@@ -770,8 +774,8 @@ const CARDS = {
         <div class="rbox"><div class="k">Active energy</div><div class="v num">${ac == null ? "—" : Math.round(ac).toLocaleString("en-US")} <small style="font-size:13px;color:var(--muted)">kcal</small></div>${delta(ac, acP, " kcal")}</div>
       </div>
       <div class="row"><span class="k">Workouts</span><span class="v">${wo.length ? `${wo.length} · ${Math.round(woMin)} min${types ? ` <small style="color:var(--muted);font-weight:500">${esc(types)}</small>` : ""}` : "None this week"}</span></div>
-      <div><div class="bars">${bars.map(d => `<span class="${d === todayStr() ? "today" : ""}" style="height:${Math.round((A.steps[d] || 0)/mx*100)}%"></span>`).join("")}</div>
-      <div class="row" style="font-size:11px;color:var(--muted);margin-top:4px"><span>Steps, 14 days</span><span>Today</span></div></div>
+      <div><div class="bars">${bars.map(d => `<span class="${d === cur ? "today" : ""}" style="height:${Math.round((A.steps[d] || 0)/mx*100)}%"></span>`).join("")}</div>
+      <div class="row" style="font-size:11px;color:var(--muted);margin-top:4px"><span>Steps, 14 days${S.settings.dayMode === "calendar" ? "" : " · days start when you wake"}</span><span>Today</span></div></div>
     </section>`;
   },
   fitness(){
@@ -1065,7 +1069,7 @@ view.addEventListener("touchend", () => {
 function deleteEntry(entry){
   if (entry.src === "health") S.settings.healthIgnore = [...new Set([...S.settings.healthIgnore, entry.date])];
   else if (S.settings.healthWrite) nativeCmd("healthDelete", { date: entry.date });
-  S.entries = S.entries.filter(e => e !== entry); save(); haptic("warning"); swipeOpen = null; render(); scheduleReminder();
+  S.entries = S.entries.filter(e => e !== entry); rebuildActivity(); save(); haptic("warning"); swipeOpen = null; render(); scheduleReminder();
   toast("Weigh-in deleted", { label: "Undo", fn: () => {
     if (entry.src === "health") S.settings.healthIgnore = S.settings.healthIgnore.filter(d => d !== entry.date);
     else if (S.settings.healthWrite) nativeCmd("healthWrite", { date: entry.date, kg: entry.kg });
@@ -1128,10 +1132,12 @@ function openEntry(entry){
     const keep = entry && entry.date === date ? { fat: entry.fat, lean: entry.lean } : {};
     if (entry) S.entries = S.entries.filter(e => e.id !== entry.id);
     const same = S.entries.find(e => e.date === date), kgR = Math.round(kg*1000)/1000;
-    if (same){ same.kg = kgR; same.note = note || same.note || ""; delete same.src; }
+    const when = date === todayStr() ? Date.now() : null;
+    if (same){ same.kg = kgR; same.note = note || same.note || ""; delete same.src; if (!same.t && when) same.t = when; }
     else { const ne = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date, kg: kgR, note };
+      if (entry && entry.date === date && entry.t) ne.t = entry.t; else if (when) ne.t = when;
       if (typeof keep.fat === "number") ne.fat = keep.fat; if (typeof keep.lean === "number") ne.lean = keep.lean; S.entries.push(ne); }
-    sortEntries(); save(); closeSheet(); haptic("success"); render();
+    sortEntries(); rebuildActivity(); save(); closeSheet(); haptic("success"); render();
     toast(same ? "Updated that day's weigh-in" : "Saved");
     if (S.settings.healthWrite) nativeCmd("healthWrite", { date, kg: kgR });
     scheduleReminder(); checkCelebrate(false);
@@ -1200,14 +1206,65 @@ function openColumns(){
   sh.querySelector("#cr").onchange = e => { S.settings.cols.rate = e.target.checked; save(); haptic("light"); render(); };
 }
 
+/* ---------- waking days ---------- */
+// A "day" runs from when you wake up until you next wake up, so late nights count toward the day you started.
+// Start of each day: the morning weigh-in, or putting the watch back on after 4+ hours off (sleep),
+// whichever came first; with neither, a fallback hour.
+let ACT_RAW = null;
+const localDate = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+function dayStarts(fromDate){
+  const cutoff = S.settings.dayCutoff ?? 5, wakes = (ACT_RAW && ACT_RAW.wakes) || [];
+  const weigh = {}; for (const e of S.entries) if (e.t) weigh[e.date] = Math.min(weigh[e.date] ?? Infinity, e.t);
+  const wakeBy = {};
+  for (let i = 0; i < wakes.length; i++){ const t = wakes[i], d = localDate(t); (wakeBy[d] || (wakeBy[d] = [])).push(t); }
+  const out = [], end = todayStr();
+  for (let n = dnum(fromDate); n <= dnum(end); n++){
+    const d = fromDnum(n), w = weigh[d], ws = wakeBy[d] || [];
+    let t = null;
+    if (w != null){ const before = ws.filter(x => x <= w && w - x < 4*3600e3); t = before.length ? Math.min(...before) : w; }
+    else if (ws.length) t = Math.min(...ws);
+    else { const [y,m,dd] = d.split("-").map(Number); t = new Date(y, m-1, dd, cutoff, 0, 0).getTime(); }
+    out.push({ label: d, t });
+  }
+  // keep starts increasing (a very late fallback must not come after the next real start)
+  for (let i = out.length - 2; i >= 0; i--) if (out[i].t >= out[i+1].t) out[i].t = out[i+1].t - 60e3;
+  return out;
+}
+function labelFor(t, starts){
+  if (S.settings.dayMode === "calendar") return localDate(t);
+  let lo = 0, hi = starts.length - 1, ans = -1;
+  while (lo <= hi){ const mid = (lo + hi) >> 1; if (starts[mid].t <= t){ ans = mid; lo = mid + 1; } else hi = mid - 1; }
+  return ans < 0 ? null : starts[ans].label;
+}
+function currentLabel(){
+  if (S.settings.dayMode === "calendar") return todayStr();
+  const starts = dayStarts(fromDnum(dnum(todayStr()) - 2));
+  return labelFor(Date.now(), starts) || todayStr();
+}
+function rebuildActivity(){
+  if (!ACT_RAW) return;
+  const first = [ACT_RAW.stepsT, ACT_RAW.activeT, ACT_RAW.basalT].flat().reduce((m, b) => Math.min(m, b[0]), Date.now());
+  const starts = dayStarts(fromDnum(dnum(localDate(first)) - 1));
+  const sumBy = list => { const out = {}; for (const [t, v] of list){ const l = labelFor(t + 15*60e3, starts); if (l) out[l] = Math.round(((out[l] || 0) + v)*10)/10; } return out; };
+  const raw = ACT_RAW;
+  S.activity = {
+    updated: raw.updated, mode: S.settings.dayMode,
+    steps: raw.stepsT.length ? sumBy(raw.stepsT) : raw.steps,
+    active: raw.activeT.length ? sumBy(raw.activeT) : raw.active,
+    basal: raw.basalT.length ? sumBy(raw.basalT) : raw.basal,
+    rhr: raw.rhr, vo2: raw.vo2,
+    workouts: raw.workouts.map(w => ({ ...w, date: w.t ? (labelFor(w.t, starts) || w.date) : w.date }))
+  };
+}
+
 /* ---------- activity ---------- */
 const avg = a => a.reduce((s,v) => s + v, 0)/a.length;
 // `n` calendar days ending the day before today, shifted back by `skip` days
-function lastDays(n, skip){ const t = dnum(todayStr()) - 1 - (skip || 0); return Array.from({length: n}, (_, i) => fromDnum(t - (n - 1 - i))); }
+function lastDays(n, skip){ const t = dnum(currentLabel()) - 1 - (skip || 0); return Array.from({length: n}, (_, i) => fromDnum(t - (n - 1 - i))); }
 function enableActivity(){ S.settings.actRead = true; save(); nativeCmd("activityAuthorize"); haptic("light"); toast("Reading activity from Apple Health…"); render(); }
 function syncActivity(force){
   if (!NATIVE || !S.settings.actRead) return;
-  if (!force && S.activity && Date.now() - S.activity.updated < 30*60*1000) return;
+  if (!force && ACT_RAW && Date.now() - ACT_RAW.updated < 10*60*1000) return;
   nativeCmd("activityRead", { days: 60 });
 }
 
@@ -1386,15 +1443,15 @@ async function analyzeFood(text, step){
 }
 
 let foodDay = todayStr();
-function dayLabel(d){ const t = todayStr(); if (d === t) return "Today"; if (d === fromDnum(dnum(t) - 1)) return "Yesterday"; const p = parts(d); return `${WD[p.wd]} ${p.d} ${MON[p.m-1]}`; }
+function dayLabel(d){ const t = currentLabel(); if (d === t) return "Today"; if (d === fromDnum(dnum(t) - 1)) return "Yesterday"; const p = parts(d); return `${WD[p.wd]} ${p.d} ${MON[p.m-1]}`; }
 function renderFood(head){
   const items = S.food[foodDay] || [], t = dayTotals(items);
   const A = S.activity, burn = A && (A.basal[foodDay] || 0) > 0 ? (A.active[foodDay] || 0) + A.basal[foodDay] : null;
   const k = v => Math.round(v).toLocaleString("en-US");
-  let html = head + `<div class="daynav"><button id="fdPrev" aria-label="Previous day">‹</button><b>${dayLabel(foodDay)}</b><button id="fdNext" aria-label="Next day" ${foodDay >= todayStr() ? "disabled" : ""}>›</button></div>`;
+  let html = head + `<div class="daynav"><button id="fdPrev" aria-label="Previous day">‹</button><b>${dayLabel(foodDay)}</b><button id="fdNext" aria-label="Next day" ${foodDay >= currentLabel() ? "disabled" : ""}>›</button></div>`;
   html += `<section class="card"><div class="hero"><div><div class="lbl">Eaten</div><span class="big num">${k(t.kcal)}</span><span class="unit">kcal</span></div>
       ${burn != null && items.length ? `<span class="pill ${t.kcal < burn ? "good" : "bad"} num">${t.kcal < burn ? "−" : "+"}${k(Math.abs(burn - t.kcal))} kcal</span>` : ""}</div>
-    ${burn != null ? `<div class="lbl">Burned <b class="num" style="color:var(--fg)">${k(burn)}</b> kcal${foodDay === todayStr() ? " so far today" : ""} · Apple Watch</div>` : ""}
+    ${burn != null ? `<div class="lbl">Burned <b class="num" style="color:var(--fg)">${k(burn)}</b> kcal${foodDay === currentLabel() ? " so far today" : ""} · Apple Watch</div>` : ""}
     <div class="tiles" style="grid-template-columns:repeat(3,1fr)">
       <div class="tile"><div class="v num">${Math.round(t.p)} g</div><div class="k">Protein</div></div>
       <div class="tile"><div class="v num">${Math.round(t.c)} g</div><div class="k">Carbs</div></div>
@@ -1413,7 +1470,7 @@ function renderFood(head){
   }
   view.innerHTML = html;
   $("#fdPrev").onclick = () => { foodDay = fromDnum(dnum(foodDay) - 1); haptic("selection"); render(); };
-  $("#fdNext").onclick = () => { if (foodDay < todayStr()){ foodDay = fromDnum(dnum(foodDay) + 1); haptic("selection"); render(); } };
+  $("#fdNext").onclick = () => { if (foodDay < currentLabel()){ foodDay = fromDnum(dnum(foodDay) + 1); haptic("selection"); render(); } };
   $("#fLog").onclick = openFoodLog;
   const sc = $("#fScan"); if (sc) sc.onclick = () => { haptic("light"); nativeCmd("scanBarcode"); };
   view.querySelectorAll("[data-fi]").forEach(b => b.onclick = () => openFoodItem(+b.dataset.fi));
@@ -1574,6 +1631,10 @@ function renderSettings(head){
     <div class="group-t">How to calculate</div><div class="list">
       <label class="item"><span class="k">Trend smoothing<span class="h">Heavier smoothing ignores daily swings more but reacts slower</span></span>
         <select id="sa"><option value="0.2" ${s.smooth == 0.2 ? "selected" : ""}>Light</option><option value="0.1" ${s.smooth == 0.1 ? "selected" : ""}>Standard</option><option value="0.05" ${s.smooth == 0.05 ? "selected" : ""}>Heavy</option></select></label>
+      <label class="item"><span class="k">A day starts<span class="h">${s.dayMode === "calendar" ? "Steps, energy and food reset at midnight, like the Health app." : "When you wake up: your morning weigh-in, or putting on your watch after sleeping. Late nights count toward the day you woke up."}</span></span>
+        <select id="dm"><option value="awake" ${s.dayMode !== "calendar" ? "selected" : ""}>When I wake</option><option value="calendar" ${s.dayMode === "calendar" ? "selected" : ""}>At midnight</option></select></label>
+      ${s.dayMode !== "calendar" ? `<label class="item"><span class="k">Fallback start<span class="h">Used on days with no weigh-in and no watch data</span></span>
+        <select id="dc">${Array.from({length: 13}, (_, h) => `<option value="${h}" ${(s.dayCutoff ?? 5) === h ? "selected" : ""}>${pad(h)}:00</option>`).join("")}</select></label>` : ""}
     </div>
     <div class="group-t">Appearance</div><div class="list">
       <label class="item"><span class="k">Theme</span><select id="st"><option value="auto" ${s.theme === "auto" ? "selected" : ""}>Match iPhone</option><option value="dark" ${s.theme === "dark" ? "selected" : ""}>Dark</option><option value="light" ${s.theme === "light" ? "selected" : ""}>Light</option></select></label>
@@ -1611,6 +1672,8 @@ function renderSettings(head){
   num("#sh", v => S.settings.height = v);
   $("#su").onchange = e => { S.settings.unit = e.target.value; save(); haptic("light"); render(); };
   $("#sa").onchange = e => { S.settings.smooth = parseFloat(e.target.value); save(); resetCelebrations(); haptic("light"); };
+  $("#dm").onchange = e => { S.settings.dayMode = e.target.value; rebuildActivity(); foodDay = currentLabel(); save(); haptic("light"); render(); };
+  const dc = $("#dc"); if (dc) dc.onchange = e => { S.settings.dayCutoff = +e.target.value; rebuildActivity(); save(); haptic("light"); };
   $("#st").onchange = e => { S.settings.theme = e.target.value; save(); applyTheme(); render(); };
   document.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { S.settings.accent = b.dataset.acc; save(); haptic("selection"); applyTheme(); render(); });
   $("#bx").onclick = () => exportFile(`trendline-backup-${todayStr()}.json`, JSON.stringify(S, null, 1), "application/json");
@@ -1687,7 +1750,7 @@ function toast(msg, action){
 }
 
 /* ---------- boot ---------- */
-load(); applyTheme();
+load(); applyTheme(); foodDay = currentLabel();
 document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
 render();
 if (NATIVE){ syncHealth(false); syncActivity(true); scheduleReminder(); nativeCmd("keyStatus"); }

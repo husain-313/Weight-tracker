@@ -358,6 +358,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                     if days[day]?[key] == nil {
                         let value = sample.quantity.doubleValue(for: unit) * scale
                         days[day, default: [:]][key] = (value * 1000).rounded() / 1000
+                        if key == "kg" { days[day, default: [:]]["t"] = (sample.startDate.timeIntervalSince1970 * 1000).rounded() }
                     }
                 }
                 lock.unlock()
@@ -462,8 +463,10 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                        abs((entries[i]["kg"] as? Double ?? 0) - kg) > 0.005 { entries[i]["kg"] = kg; changed = true }
                     if let fat = values["fat"], entries[i]["fat"] as? Double != fat { entries[i]["fat"] = fat; changed = true }
                     if let lean = values["lean"], entries[i]["lean"] as? Double != lean { entries[i]["lean"] = lean; changed = true }
+                    if entries[i]["t"] == nil, let t = values["t"] { entries[i]["t"] = t; changed = true }
                 } else if let kg = values["kg"], kg > 20, kg < 400 {
                     var entry: [String: Any] = ["id": "h" + day, "date": day, "kg": kg, "note": "", "src": "health"]
+                    if let t = values["t"] { entry["t"] = t }
                     if let fat = values["fat"] { entry["fat"] = fat }
                     if let lean = values["lean"] { entry["lean"] = lean }
                     entries.append(entry)
@@ -613,7 +616,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     private var activityTypes: Set<HKObjectType> {
         var set: Set<HKObjectType> = [HKObjectType.workoutType()]
-        for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .basalEnergyBurned, .restingHeartRate, .vo2Max] {
+        for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .basalEnergyBurned, .restingHeartRate, .vo2Max, .heartRate] {
             if let t = HKQuantityType.quantityType(forIdentifier: id) { set.insert(t) }
         }
         return set
@@ -646,6 +649,31 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         health.execute(query)
     }
 
+    /// Sums in fixed time buckets, returned as [[startMs, value]] for non-empty buckets.
+    private func buckets(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int, minutes: Int, sum: Bool,
+                         done: @escaping ([[Double]]) -> Void) {
+        guard let type = HKQuantityType.quantityType(forIdentifier: id) else { done([]); return }
+        let cal = Calendar.current
+        let end = Date()
+        let anchor = cal.startOfDay(for: end)
+        guard let start = cal.date(byAdding: .day, value: -days, to: anchor) else { done([]); return }
+        let query = HKStatisticsCollectionQuery(quantityType: type,
+                                                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end),
+                                                options: sum ? .cumulativeSum : .discreteAverage,
+                                                anchorDate: anchor, intervalComponents: DateComponents(minute: minutes))
+        query.initialResultsHandler = { _, results, _ in
+            var out: [[Double]] = []
+            results?.enumerateStatistics(from: start, to: end) { stats, _ in
+                let q = sum ? stats.sumQuantity() : stats.averageQuantity()
+                if let v = q?.doubleValue(for: unit), v > 0 {
+                    out.append([(stats.startDate.timeIntervalSince1970 * 1000).rounded(), (v * 10).rounded() / 10])
+                }
+            }
+            done(out)
+        }
+        health.execute(query)
+    }
+
     private func activityRead(days: Int) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
         let group = DispatchGroup()
@@ -665,6 +693,30 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 lock.lock(); result[key] = values; lock.unlock(); group.leave()
             }
         }
+        var series: [String: [[Double]]] = [:]
+        let bucketSpecs: [(String, HKQuantityTypeIdentifier, HKUnit)] = [
+            ("stepsT", .stepCount, .count()),
+            ("activeT", .activeEnergyBurned, .kilocalorie()),
+            ("basalT", .basalEnergyBurned, .kilocalorie()),
+        ]
+        for (key, id, unit) in bucketSpecs {
+            group.enter()
+            buckets(id, unit: unit, days: days, minutes: 30, sum: true) { b in
+                lock.lock(); series[key] = b; lock.unlock(); group.leave()
+            }
+        }
+        // Watch worn = heart-rate readings. A gap of 4+ hours then readings again = woke up and put the watch on.
+        var wakes: [Double] = []
+        group.enter()
+        buckets(.heartRate, unit: bpm, days: days, minutes: 15, sum: false) { b in
+            var prev: Double?
+            var found: [Double] = []
+            for item in b {
+                if let p = prev, item[0] - p >= 4 * 3600 * 1000 { found.append(item[0]) }
+                prev = item[0] + 15 * 60 * 1000
+            }
+            lock.lock(); wakes = found; lock.unlock(); group.leave()
+        }
         var workouts: [[String: Any]] = []
         group.enter()
         let start = Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
@@ -672,14 +724,16 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                                predicate: HKQuery.predicateForSamples(withStart: start, end: nil, options: []),
                                limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
             for case let w as HKWorkout in samples ?? [] {
-                workouts.append(["date": Bridge.day(w.startDate), "min": (w.duration / 60).rounded(), "type": Bridge.workoutName(w.workoutActivityType)])
+                workouts.append(["date": Bridge.day(w.startDate), "t": (w.startDate.timeIntervalSince1970 * 1000).rounded(),
+                                 "min": (w.duration / 60).rounded(), "type": Bridge.workoutName(w.workoutActivityType)])
             }
             group.leave()
         }
         health.execute(wq)
         group.notify(queue: .global()) {
-            var payload: [String: Any] = ["workouts": workouts]
+            var payload: [String: Any] = ["workouts": workouts, "wakes": wakes]
             for (k, v) in result { payload[k] = v }
+            for (k, v) in series { payload[k] = v }
             self.send("activity", payload)
         }
     }
