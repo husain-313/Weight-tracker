@@ -283,6 +283,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             runLocalAI(id: (body["id"] as? NSNumber)?.intValue ?? 0,
                        instructions: body["instructions"] as? String ?? "",
                        prompt: body["prompt"] as? String ?? "")
+        case "openURL":
+            if let text = body["url"] as? String, let url = URL(string: text), url.scheme == "https" {
+                DispatchQueue.main.async { UIApplication.shared.open(url) }
+            }
+        case "copy":
+            if let text = body["text"] as? String { DispatchQueue.main.async { UIPasteboard.general.string = text } }
         case "scanBarcode":
             BarcodeScanner.shared.start(from: webView)
         case "activityAuthorize":
@@ -334,12 +340,17 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     /// First reading of each day from other apps and scales: weight, body fat % and lean mass.
     private func fetchDays(since: Date, completion: @escaping ([String: [String: Double]], Error?) -> Void) {
+        fetchDaysDetailed(since: since) { days, _, error in completion(days, error) }
+    }
+
+    private func fetchDaysDetailed(since: Date, completion: @escaping ([String: [String: Double]], [[Double]], Error?) -> Void) {
         let mine = HKSource.default()
         let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: [])
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         let group = DispatchGroup()
         let lock = NSLock()
         var days: [String: [String: Double]] = [:]
+        var weights: [[Double]] = []
         var firstError: Error?
         let specs: [(HKQuantityType, String, HKUnit, Double)] = [
             (massType, "kg", .gramUnit(with: .kilo), 1),
@@ -354,6 +365,10 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 if let error = error, key == "kg" { firstError = error }
                 for case let sample as HKQuantitySample in samples ?? [] {
                     if sample.sourceRevision.source == mine { continue }
+                    if key == "kg" {
+                        let kg = sample.quantity.doubleValue(for: unit)
+                        weights.append([(sample.startDate.timeIntervalSince1970 * 1000).rounded(), (kg * 1000).rounded() / 1000])
+                    }
                     let day = Bridge.day(sample.startDate)
                     if days[day]?[key] == nil {
                         let value = sample.quantity.doubleValue(for: unit) * scale
@@ -366,12 +381,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             }
             health.execute(query)
         }
-        group.notify(queue: .global()) { completion(days, firstError) }
+        group.notify(queue: .global()) { completion(days, weights.sorted { $0[0] < $1[0] }, firstError) }
     }
 
     private func healthRead(since: String) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        fetchDays(since: Bridge.date(since) ?? .distantPast) { days, error in
+        fetchDaysDetailed(since: Bridge.date(since) ?? .distantPast) { days, weights, error in
             if let error = error as NSError?,
                error.code != HKError.Code.errorAuthorizationNotDetermined.rawValue,
                error.code != HKError.Code.errorAuthorizationDenied.rawValue {
@@ -383,7 +398,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 for (k, v) in values { item[k] = v }
                 return item
             }
-            self.send("health-samples", ["samples": list])
+            self.send("health-samples", ["samples": list, "weights": weights])
         }
     }
 
@@ -538,7 +553,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         "usda": "api.nal.usda.gov",
         "claude": "api.anthropic.com",
     ]
-    private static let allowedHosts: Set<String> = Set(keyHosts.values).union(["world.openfoodfacts.org"])
+    private static let allowedHosts: Set<String> = Set(keyHosts.values).union(["world.openfoodfacts.org", "api.github.com"])
 
     private func performHTTP(_ body: [String: Any]) {
         guard let id = (body["id"] as? NSNumber)?.intValue, var urlString = body["url"] as? String else { return }

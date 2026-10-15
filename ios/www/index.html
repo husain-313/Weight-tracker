@@ -174,6 +174,7 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .btn.danger{background:var(--bad-bg);color:var(--bad)}
 .btns{display:flex;gap:10px;flex-wrap:wrap}
 .btns .btn{flex:1 1 140px}
+.empty .btns .btn{flex:none}
 
 /* empty */
 .empty{align-items:center;text-align:center;padding:36px 20px;gap:14px}
@@ -298,7 +299,7 @@ const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webki
 const CARD_NAMES = { trend:"Trend weight", chart:"Weight chart", predict:"Predictions", goal:"Goal progress", energy:"Energy balance", activity:"Activity", fitness:"Fitness", body:"Body composition", records:"Records", bmi:"Body mass index" };
 const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, theme:"auto", accent:"teal", step:null, chartRange:90, reportMode:"monthly",
   healthRead:false, healthWrite:false, healthSince:null, healthFrom:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
-  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false, dayMode:"awake", dayCutoff:5, dayStarts:{}, sleepAsked:false,
+  commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false, dayMode:"awake", dayCutoff:5, dayStarts:{}, sleepAsked:false, updateSeen:null, updateChecked:0,
   models:{ gemini:"gemini-2.5-flash", groq:"llama-3.3-70b-versatile", claude:"claude-haiku-5-5" } };
 let S = { entries:[], settings:{...DEFAULTS}, food:{}, foodCache:{}, activity:null };
 
@@ -352,9 +353,10 @@ const NUMFONT = getComputedStyle(document.documentElement).getPropertyValue("--f
 
 /* ---------- the math ---------- */
 // Exponentially smoothed trend that respects gaps between weigh-ins.
+const counts = e => !e.ignored && !(e.outlier && !e.keep);
 function computeTrend(){
   const a = S.settings.smooth; let t = null, prev = null;
-  return S.entries.map(e => {
+  return S.entries.filter(counts).map(e => {
     const n = dnum(e.date);
     if (t === null) t = e.kg; else { const f = 1 - Math.pow(1 - a, Math.max(1, n - prev)); t += f * (e.kg - t); }
     prev = n; return { ...e, n, trend: t };
@@ -389,6 +391,31 @@ function changeOver(rows, days){
   let i0 = 0; for (let i = 0; i < rows.length; i++) if (rows[i].n <= target) i0 = i;
   for (let i = i0 + 1; i < rows.length; i++) if (rows[i].n - rows[i-1].n > 21) return null;
   const b = trendAt(rows, target); return b == null ? null : last.trend - b;
+}
+// Flags a weigh-in that is far from the trend (someone else on the scale, clothes, a big meal) until you confirm it.
+function detectOutliers(){
+  const a = S.settings.smooth; let t = null, prev = null, changed = false;
+  for (const e of S.entries){
+    if (e.ignored) continue;
+    const n = dnum(e.date);
+    if (t !== null && !e.keep && !e.reviewed){
+      const lim = Math.max(2, t*0.025), recent = n - prev <= 7;
+      const out = recent && Math.abs(e.kg - t) > lim;
+      if (!!e.outlier !== out){ e.outlier = out; changed = true; }
+      if (!out && dnum(todayStr()) - n > 3 && !e.reviewed){ e.reviewed = true; changed = true; }
+    }
+    if (e.outlier && !e.keep) continue;
+    if (t === null) t = e.kg; else { const f = 1 - Math.pow(1 - a, Math.max(1, n - prev)); t += f*(e.kg - t); }
+    prev = n;
+  }
+  return changed;
+}
+// Minutes between waking and the weigh-in, when both are known.
+function minutesAfterWake(e){
+  if (!e.t || S.settings.dayMode === "calendar") return null;
+  const st = dayStarts(fromDnum(dnum(e.date) - 1)).find(x => x.label === e.date);
+  if (!st || st.src === "fallback" || st.src === "weigh") return null;
+  return Math.round((e.t - st.t)/60000);
 }
 function startWeight(){ return S.settings.start ?? (S.entries[0] ? S.entries[0].kg : null); }
 function goalDir(){ const g = S.settings.goal, st = startWeight(); if (g == null || st == null) return -1; return g < st ? -1 : 1; }
@@ -457,11 +484,11 @@ function applyTheme(){
 let backupInfo = null;
 window.__native = function(event, p){
   p = p || {};
-  if (event === "health-samples") mergeHealth(p.samples || [], p.error);
+  if (event === "health-samples") mergeHealth(firstAfterWake(p.samples || [], p.weights || []), p.error);
   else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab === "settings") render(); } else syncHealth(true); }
   else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings."); if (tab === "settings") render(); }
   else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
-  else if (event === "foreground"){ syncHealth(false); syncActivity(false); scheduleReminder(); foodDay = currentLabel(); if (tab !== "settings") render(); }
+  else if (event === "foreground"){ syncHealth(false); syncActivity(false); checkUpdate(false); scheduleReminder(); foodDay = currentLabel(); if (tab !== "settings") render(); }
   else if (event === "toast") toast(p.text || "");
   else if (event === "http-result"){ const w = httpWait[p.id]; if (w){ delete httpWait[p.id]; p.error ? w.reject(new Error(p.error)) : w.resolve(p); } }
   else if (event === "local-ai"){ const w = localWait[p.id]; if (w){ delete localWait[p.id]; p.ok ? w.resolve(p.text || "") : w.reject(new Error(p.error || "unavailable")); } }
@@ -502,6 +529,25 @@ function syncHealth(full){
   if (S.settings.healthFrom && since < S.settings.healthFrom) since = S.settings.healthFrom;
   nativeCmd("healthRead", { since });
 }
+// The scale reading that counts for a day is the first one after you woke up, so a weigh-in
+// late at night (after midnight, before sleep) doesn't replace the next morning's.
+function firstAfterWake(samples, weights){
+  if (!weights.length || S.settings.dayMode === "calendar") return samples;
+  const starts = dayStarts(fromDnum(dnum(localDate(weights[0][0])) - 1), true);
+  const pick = {};
+  for (const [t, kg] of weights){
+    let i = -1; for (let j = 0; j < starts.length; j++) if (starts[j].t <= t) i = j;
+    const st = i >= 0 ? starts[i] : null;
+    const label = st && st.src !== "fallback" ? st.label : localDate(t);
+    if (!pick[label]) pick[label] = { t, kg };
+  }
+  const byDate = {}; for (const smp of samples) byDate[smp.date] = { ...smp };
+  for (const [d, w] of Object.entries(pick)) byDate[d] = { ...(byDate[d] || { date: d }), kg: w.kg, t: w.t };
+  const picked = new Set(Object.keys(pick));
+  // drop calendar days whose only reading belonged to the previous waking day
+  for (const d of Object.keys(byDate)) if (!picked.has(d) && byDate[d].kg && weights.some(w => localDate(w[0]) === d)) delete byDate[d].kg;
+  return Object.values(byDate);
+}
 function mergeHealth(samples, error){
   if (error){ toast("Could not read from Apple Health."); return; }
   const ignore = new Set(S.settings.healthIgnore || []);
@@ -512,12 +558,12 @@ function mergeHealth(samples, error){
     let ex = S.entries.find(e => e.date === smp.date);
     if (!ex){ if (!hasKg) continue; ex = { id: "h" + smp.date, date: smp.date, kg: smp.kg, note: "", src: "health" }; S.entries.push(ex); added++; }
     if (smp.t && !ex.t) ex.t = smp.t;
-    else if (hasKg && ex.src === "health" && Math.abs(ex.kg - smp.kg) > 0.005){ ex.kg = smp.kg; changed++; }
+    else if (hasKg && ex.src === "health" && (Math.abs(ex.kg - smp.kg) > 0.005 || (smp.t && ex.t !== smp.t))){ ex.kg = smp.kg; if (smp.t) ex.t = smp.t; delete ex.outlier; delete ex.reviewed; changed++; }
     if (smp.fat > 1 && smp.fat < 75 && ex.fat !== smp.fat){ ex.fat = smp.fat; changed++; }
     if (smp.lean > 10 && smp.lean < 200 && ex.lean !== smp.lean){ ex.lean = smp.lean; changed++; }
   }
   S.settings.healthSince = todayStr();
-  sortEntries(); rebuildActivity(); save();
+  sortEntries(); detectOutliers(); rebuildActivity(); save();
   if (added || changed){
     render(); scheduleReminder();
     if (added) toast(`Added ${added} weigh-in${added > 1 ? "s" : ""} from Apple Health`);
@@ -643,7 +689,14 @@ function renderEmpty(head){
 function renderSummary(head){
   const rows = computeTrend();
   let html = head;
-  for (const c of S.settings.cards) if (c.on) html += (CARDS[c.id] || (() => ""))(rows);
+  const odd = S.entries.filter(e => e.outlier && !e.keep && !e.ignored);
+  for (const e of odd.slice(-3)){
+    const before = rows.filter(r => r.date < e.date), t = before.length ? before[before.length-1].trend : null;
+    html += `<section class="card" style="box-shadow:inset 0 0 0 1.5px var(--warn)"><div class="card-h"><h2>Check this weigh-in</h2></div>
+      <p class="note"><b style="color:var(--fg)">${fmtDate(e.date)}: ${fw(e.kg)} ${U()}</b>${t != null ? `, ${fd(e.kg - t)} ${U()} from your trend of ${fw(t)}` : ""}. Someone else on the scale, clothes or a big meal can cause this. It isn't counted until you decide.</p>
+      <div class="btns"><button class="btn" data-odd-keep="${esc(e.id)}">It's right, count it</button><button class="btn danger" data-odd-ignore="${esc(e.id)}">Ignore it</button></div></section>`;
+  }
+  if (rows.length) for (const c of S.settings.cards) if (c.on) html += (CARDS[c.id] || (() => ""))(rows);
   view.innerHTML = html;
   bindSummary(rows);
 }
@@ -755,7 +808,12 @@ const CARDS = {
         html += line("Scale shows", `${arrow(act)} ${Math.abs(toU(act)).toFixed(2)} ${U()}/wk`, "Your real trend");
       }
     }
-    html += `</div><p class="note" style="font-size:13px">Estimates. Watch calories and food logs are approximate, so compare weekly averages rather than single days.</p></section>`;
+    const rb = realBurn(rows);
+    if (rb){
+      html += line("Your real burn", `~${k(rb.kcal)} kcal/day`, `From ${rb.days} logged days and your weight change`);
+      if (burn != null) html += line("Watch estimate", `${rb.kcal < burn ? "+" : "−"}${Math.round(Math.abs(burn - rb.kcal)/rb.kcal*100)}%`, burn > rb.kcal ? "Your watch counts more than you really burn" : "Your watch counts less than you really burn");
+    }
+    html += `</div><p class="note" style="font-size:13px">Estimates. ${rb ? "Your real burn is the most reliable number here, as long as you log everything you eat on logged days." : "Log full days of food for about two weeks and Trendline will work out how much you really burn."}</p></section>`;
     return html;
   },
   activity(){
@@ -823,6 +881,9 @@ const CARDS = {
 };
 const RANGES = [[7,"7D"],[30,"30D"],[90,"90D"],[365,"1Y"],[0,"All"]];
 function bindSummary(rows){
+  document.querySelectorAll("[data-odd-keep]").forEach(b => b.onclick = () => { const e = S.entries.find(x => x.id === b.dataset.oddKeep); if (!e) return; e.keep = true; e.outlier = false; e.reviewed = true; detectOutliers(); save(); haptic("success"); render(); toast("Counted"); });
+  document.querySelectorAll("[data-odd-ignore]").forEach(b => b.onclick = () => { const e = S.entries.find(x => x.id === b.dataset.oddIgnore); if (!e) return; e.ignored = true; e.outlier = false; detectOutliers(); save(); haptic("warning"); render();
+    toast("Ignored", { label: "Undo", fn: () => { delete e.ignored; e.keep = true; save(); render(); } }); });
   document.querySelectorAll("#rng button").forEach(b => b.onclick = () => { S.settings.chartRange = +b.dataset.r; save(); haptic("selection");
     document.querySelectorAll("#rng button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange); });
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
@@ -1024,7 +1085,9 @@ function renderReports(head){
 /* ---------- logbook ---------- */
 function logCols(){ const c = S.settings.cols; return ["52px", "1fr", c.trend ? "1fr" : null, c.rate ? "76px" : null].filter(Boolean).join(" "); }
 function renderLogbook(head){
-  const rows = computeTrend(), rates = rows.map((_, i) => weeklyRateAt(rows, i)), cols = S.settings.cols, gtc = logCols();
+  const valid = computeTrend(), vRates = valid.map((_, i) => weeklyRateAt(valid, i)), vIdx = new Map(valid.map((r, i) => [r.id, i]));
+  const rows = S.entries.map(e => { const i = vIdx.get(e.id); return i == null ? { ...e, trend: null, excluded: true } : valid[i]; });
+  const rates = rows.map(r => r.excluded ? null : vRates[vIdx.get(r.id)]), cols = S.settings.cols, gtc = logCols();
   const byMonth = new Map(); rows.forEach((r, i) => { const k = r.date.slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(i); });
   let html = head;
   [...byMonth.keys()].sort().reverse().forEach(k => {
@@ -1033,12 +1096,15 @@ function renderLogbook(head){
       <div class="lgrid lhead" style="grid-template-columns:${gtc}"><span>Date</span><span>Weight</span>${cols.trend ? "<span>Trend</span>" : ""}${cols.rate ? "<span>Weekly</span>" : ""}</div>`;
     byMonth.get(k).slice().reverse().forEach(i => {
       const r = rows[i], p = parts(r.date), rt = rates[i];
-      const bits = []; if (r.note) bits.push(esc(r.note)); if (typeof r.fat === "number") bits.push(`${r.fat.toFixed(1)}% fat`); if (!r.note && r.src === "health") bits.push("Apple Health");
+      const bits = []; if (r.ignored) bits.push("Ignored, not counted"); else if (r.excluded) bits.push("Unusual, check on Summary");
+      if (r.note) bits.push(esc(r.note)); if (typeof r.fat === "number") bits.push(`${r.fat.toFixed(1)}% fat`);
+      const late = minutesAfterWake(r); if (late != null && late > 120) bits.push(`Weighed ${Math.floor(late/60)}h ${late % 60}m after waking`);
+      if (!r.note && r.src === "health" && !r.excluded) bits.push("Apple Health");
       html += `<div class="swipe"><button class="del" data-del="${esc(r.id)}">Delete</button>
         <button class="lrow" data-id="${esc(r.id)}"><div class="lgrid" style="grid-template-columns:${gtc}">
           <span class="d"><b class="num">${pad(p.d)}</b><small>${WD[p.wd]}</small></span>
-          <span class="w num c">${fw(r.kg)}</span>
-          ${cols.trend ? `<span class="t num c">${fw(r.trend)}</span>` : ""}
+          <span class="w num c" style="${r.excluded ? "color:var(--muted);text-decoration:line-through" : ""}">${fw(r.kg)}</span>
+          ${cols.trend ? `<span class="t num c">${r.excluded ? "—" : fw(r.trend)}</span>` : ""}
           ${cols.rate ? `<span class="c">${rt == null ? `<span class="chip flat">—</span>` : `<span class="chip ${tone(rt)} num">${arrow(rt)} ${Math.abs(toU(rt)).toFixed(1)}</span>`}</span>` : ""}
         </div>${bits.length ? `<span class="memo">${bits.join(" · ")}</span>` : ""}</button></div>`;
     });
@@ -1145,8 +1211,10 @@ function openEntry(entry){
     else { const ne = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date, kg: kgR, note };
       if (entry && entry.date === date && entry.t) ne.t = entry.t; else if (when) ne.t = when;
       if (typeof keep.fat === "number") ne.fat = keep.fat; if (typeof keep.lean === "number") ne.lean = keep.lean; S.entries.push(ne); }
-    sortEntries(); rebuildActivity(); save(); closeSheet(); haptic("success"); render();
-    toast(same ? "Updated that day's weigh-in" : "Saved");
+    { const mine = S.entries.find(x => x.date === date); if (mine){ delete mine.outlier; delete mine.keep; delete mine.reviewed; } }
+    sortEntries(); detectOutliers(); rebuildActivity(); save(); closeSheet(); haptic("success"); render();
+    const flagged = S.entries.find(x => x.date === date && x.outlier);
+    toast(flagged ? "Saved. This weigh-in looks unusual, check it on Summary." : same ? "Updated that day's weigh-in" : "Saved");
     if (S.settings.healthWrite) nativeCmd("healthWrite", { date, kg: kgR });
     scheduleReminder(); checkCelebrate(false);
   });
@@ -1223,9 +1291,9 @@ const localDate = t => { const d = new Date(t); return `${d.getFullYear()}-${pad
 // Start of each day, most reliable first: your edit › end of the night's sleep (watch) › morning weigh-in
 // (or the watch going back on shortly before it) › watch back on after 4+ hours off › fallback hour.
 const START_SRC = { edit:"your edit", sleep:"sleep data", weigh:"your weigh-in", watch:"putting on your watch", fallback:"the fallback time" };
-function dayStarts(fromDate){
+function dayStarts(fromDate, noWeigh){
   const cutoff = S.settings.dayCutoff ?? 5, raw = ACT_RAW || {}, wakes = raw.wakes || [], sleeps = raw.sleeps || [], edits = S.settings.dayStarts || {};
-  const weigh = {}; for (const e of S.entries) if (e.t) weigh[e.date] = Math.min(weigh[e.date] ?? Infinity, e.t);
+  const weigh = {}; if (!noWeigh) for (const e of S.entries) if (e.t) weigh[e.date] = Math.min(weigh[e.date] ?? Infinity, e.t);
   const wakeBy = {}; for (const t of wakes){ const d = localDate(t); (wakeBy[d] || (wakeBy[d] = [])).push(t); }
   const sleepBy = {}; for (const [a, b] of sleeps){ const d = localDate(b); if (!sleepBy[d] || b - a > sleepBy[d].len) sleepBy[d] = { t: b, len: b - a }; }
   const out = [], end = todayStr();
@@ -1269,6 +1337,16 @@ function rebuildActivity(){
   };
 }
 
+// Real daily burn = average logged intake minus the energy stored or lost (trend change × 7700 kcal/kg).
+// Uses days with at least two meals logged in the last 28 days; needs 10 or more of them.
+function realBurn(rows){
+  const days = lastDays(28).filter(d => new Set((S.food[d] || []).map(i => i.meal)).size >= 2);
+  if (days.length < 10) return null;
+  const s = slope(rows, 28); if (s == null) return null;
+  const intake = avg(days.map(d => dayTotals(S.food[d]).kcal));
+  return { kcal: intake - s*7700, days: days.length };
+}
+
 /* ---------- activity ---------- */
 const avg = a => a.reduce((s,v) => s + v, 0)/a.length;
 // `n` calendar days ending the day before today, shifted back by `skip` days
@@ -1304,6 +1382,39 @@ function openDayStarts(){
   };
   const refresh = () => { const g = sh.querySelector(".grab").outerHTML; sh.innerHTML = g + draw(); bind(); render(); };
   bind();
+}
+
+/* ---------- updates ---------- */
+const REPO = "husain-313/Weight-tracker";
+let latestRelease = null;
+const buildOf = s => { const m = String(s || "").match(/\((\d+)\)|build[- ](\d+)/i); return m ? +(m[1] || m[2]) : 0; };
+async function checkUpdate(manual){
+  if (!NATIVE) return;
+  if (!manual && Date.now() - (S.settings.updateChecked || 0) < 6*3600e3) return;
+  try{
+    const r = await http({ url: `https://api.github.com/repos/${REPO}/releases/latest`, headers: { "Accept": "application/vnd.github+json", "User-Agent": "Trendline" } });
+    S.settings.updateChecked = Date.now(); save();
+    if (r.status !== 200){ if (manual) toast("Couldn't check for updates right now."); return; }
+    const d = JSON.parse(r.body), asset = (d.assets || []).find(a => /\.ipa$/i.test(a.name));
+    const mine = buildOf(window.__APP_VERSION__), theirs = buildOf(d.tag_name);
+    latestRelease = { name: d.name || d.tag_name, build: theirs, notes: d.body || "", url: asset ? asset.browser_download_url : d.html_url, page: d.html_url };
+    if (theirs > mine){ if (manual || S.settings.updateSeen !== theirs) openUpdate(); if (tab === "settings") render(); }
+    else if (manual) toast("You have the latest version");
+  }catch(e){ if (manual) toast("Couldn't check for updates right now."); }
+}
+function openUpdate(){
+  const u = latestRelease; if (!u) return;
+  S.settings.updateSeen = u.build; save(); haptic("light");
+  const notes = u.notes.split(/\n+/).filter(l => l.trim() && !/^Unsigned IPA|^Built with/.test(l)).join("\n");
+  const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Later</button><h2>Update available</h2><span style="width:52px"></span></div>
+    <div class="empty" style="padding:6px 0;gap:8px"><div class="ring">${ICON.scale}</div><h2 style="font-size:20px">${esc(u.name.replace(/\s*\(build \d+\)/i, ""))}</h2>
+      <p class="lbl">You have ${esc(window.__APP_VERSION__ || "an older version")}</p></div>
+    <p class="note sel" style="white-space:pre-line;color:var(--fg)">${esc(notes)}</p>
+    <button class="btn primary" id="uDl">Download update</button>
+    <button class="btn" id="uCp">Copy download link</button>
+    <p class="note" style="font-size:13px">Then install it with Signulous like before, keeping the same bundle ID so your data stays.</p>`);
+  sh.querySelector("#uDl").onclick = () => { nativeCmd("openURL", { url: u.url }); haptic("light"); };
+  sh.querySelector("#uCp").onclick = () => { nativeCmd("copy", { text: u.url }); haptic("success"); toast("Link copied"); };
 }
 
 /* ---------- AI + network plumbing ---------- */
@@ -1699,6 +1810,10 @@ function renderSettings(head){
     <p class="group-f" id="bkinfo">${NATIVE ? backupText() : "Your data stays on this device. Export a backup now and then."}</p>
     ${NATIVE ? `<p class="group-f">Automatic backups are in the Files app: On My iPhone › Trendline › Backups.</p>` : ""}
     <div class="list" style="margin-top:8px"><button class="item danger" id="bd">Erase all data</button></div>
+    ${NATIVE ? `<div class="group-t">About</div><div class="list">
+      <div class="item"><span class="k">Version</span><span class="val">${esc(window.__APP_VERSION__ || "—")}</span></div>
+      ${latestRelease && latestRelease.build > buildOf(window.__APP_VERSION__) ? `<button class="item action" id="upOpen">Update to ${esc(latestRelease.name.replace(/\s*\(build \d+\)/i, ""))}</button>` : ""}
+      <button class="item action" id="upChk">Check for updates</button></div>` : ""}
     <p class="footer">Trendline${window.__APP_VERSION__ ? " " + esc(window.__APP_VERSION__) : ""}</p>`;
   view.innerHTML = html;
 
@@ -1744,6 +1859,8 @@ function renderSettings(head){
     $("#lk").onchange = e => { const want = e.target.checked; e.target.checked = S.settings.lock; nativeCmd("lockSet", { enabled: want }); };
     nativeCmd("backupInfo");
     nativeCmd("keyStatus");
+    $("#upChk").onclick = () => { haptic("light"); toast("Checking…"); checkUpdate(true); };
+    const uo = $("#upOpen"); if (uo) uo.onclick = openUpdate;
   }
 }
 function exportFile(name, text, type){
@@ -1788,11 +1905,11 @@ function toast(msg, action){
 }
 
 /* ---------- boot ---------- */
-load(); applyTheme(); foodDay = currentLabel();
+load(); applyTheme(); foodDay = currentLabel(); if (detectOutliers()) save();
 document.querySelectorAll(".tabbar button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
 render();
 if (NATIVE){
-  syncHealth(false); scheduleReminder(); nativeCmd("keyStatus");
+  syncHealth(false); scheduleReminder(); nativeCmd("keyStatus"); setTimeout(() => checkUpdate(false), 1500);
   if (S.settings.actRead && !S.settings.sleepAsked){ S.settings.sleepAsked = true; save(); nativeCmd("activityAuthorize"); } else syncActivity(true);
 }
 checkCelebrate(S.settings.celebrated == null);
