@@ -5,6 +5,7 @@ import UserNotifications
 import LocalAuthentication
 import VisionKit
 import AVFoundation
+import UniformTypeIdentifiers
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -133,6 +134,10 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private let stateLock = NSLock()
     private var themeStyle: UIUserInterfaceStyle = .unspecified
     private let backupQueue = DispatchQueue(label: "trendline.backup")
+    /// Readable after the first unlock, so background imports from Apple Health still work while the phone is locked.
+    private let protection: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+    static let appGroup = "group.com.husain313.trendline"
+    private var pendingFolderData: Data?
 
     // MARK: Files
 
@@ -165,7 +170,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private func store(_ json: String) {
         let data = Data(json.utf8)
         stateLock.lock()
-        try? data.write(to: stateURL, options: .atomic)
+        try? data.write(to: stateURL, options: protection)
         stateLock.unlock()
         backupQueue.async { self.writeBackups(data) }
     }
@@ -182,23 +187,31 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         send("foreground", [:])
     }
 
-    /// Keeps a "latest" copy plus one dated copy per week (the newest 8).
+    /// Runs on backupQueue after every save: local backups, the widget snapshot and the backup folder.
     private func writeBackups(_ data: Data) {
-        let dir = backupsDir
-        try? data.write(to: dir.appendingPathComponent("trendline-latest.json"), options: .atomic)
-        let dated = datedBackups()
+        writeRotating(data, in: backupsDir, keep: 8, options: protection)
+        writeWidgetSnapshot(data)
+        scheduleFolderBackup(data)
+    }
+
+    /// Keeps a "latest" copy plus one dated copy per week (the newest `keep`). Returns whether "latest" was written.
+    @discardableResult
+    private func writeRotating(_ data: Data, in dir: URL, keep: Int, options: Data.WritingOptions) -> Bool {
+        guard (try? data.write(to: dir.appendingPathComponent("trendline-latest.json"), options: options)) != nil else { return false }
+        let dated = datedBackups(in: dir)
         let weekAgo = Date().addingTimeInterval(-7 * 86400)
         if let newest = dated.last, let made = modified(newest), made > weekAgo {
             // a weekly copy already exists
         } else {
-            try? data.write(to: dir.appendingPathComponent("trendline-\(Bridge.day(Date())).json"), options: .atomic)
+            try? data.write(to: dir.appendingPathComponent("trendline-\(Bridge.day(Date())).json"), options: options)
         }
-        let all = datedBackups()
-        if all.count > 8 { all.prefix(all.count - 8).forEach { try? fm.removeItem(at: $0) } }
+        let all = datedBackups(in: dir)
+        if all.count > keep { all.prefix(all.count - keep).forEach { try? fm.removeItem(at: $0) } }
+        return true
     }
 
-    private func datedBackups() -> [URL] {
-        let items = (try? fm.contentsOfDirectory(at: backupsDir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+    private func datedBackups(in dir: URL) -> [URL] {
+        let items = (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         return items.filter { $0.lastPathComponent.hasPrefix("trendline-20") }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
@@ -210,10 +223,127 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private func backupInfo() {
         backupQueue.async {
             let latest = self.backupsDir.appendingPathComponent("trendline-latest.json")
-            var info: [String: Any] = ["count": self.datedBackups().count]
-            if let date = self.modified(latest) { info["last"] = ISO8601DateFormatter().string(from: date) }
+            let iso = ISO8601DateFormatter()
+            var info: [String: Any] = ["count": self.datedBackups(in: self.backupsDir).count,
+                                       "group": self.sharedContainer != nil,
+                                       "bundle": Bundle.main.bundleIdentifier ?? ""]
+            if let date = self.modified(latest) { info["last"] = iso.string(from: date) }
+            let defaults = UserDefaults.standard
+            if self.fm.fileExists(atPath: self.folderBookmarkURL.path) {
+                info["folder"] = defaults.string(forKey: "backupFolderName") ?? "Backup folder"
+                if let date = defaults.object(forKey: "backupFolderLast") as? Date { info["folderLast"] = iso.string(from: date) }
+                if let error = defaults.string(forKey: "backupFolderError") { info["folderError"] = error }
+            }
             self.send("backup-info", info)
         }
+    }
+
+    // MARK: Shared data for widgets (App Group)
+
+    /// The App Group container, or nil when the signing didn't grant the group.
+    var sharedContainer: URL? { fm.containerURL(forSecurityApplicationGroupIdentifier: Bridge.appGroup) }
+
+    /// A small summary widgets can read without the full state. The app's own data stays in its
+    /// private container, so losing the group after a re-sign never loses anything.
+    private func writeWidgetSnapshot(_ data: Data) {
+        guard let dir = sharedContainer,
+              let state = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
+        let prefs = settings(of: state)
+        let entries: [[Any]] = (state["entries"] as? [[String: Any]] ?? []).compactMap { e -> [Any]? in
+            guard let day = e["date"] as? String, let kg = e["kg"] as? Double else { return nil }
+            return [day, kg]
+        }
+        var snapshot: [String: Any] = ["version": 1,
+                                       "updated": ISO8601DateFormatter().string(from: Date()),
+                                       "unit": prefs["unit"] as? String ?? "kg",
+                                       "smooth": prefs["smooth"] as? Double ?? 0.1,
+                                       "entries": Array(entries.suffix(400))]
+        if let goal = prefs["goal"] as? Double { snapshot["goal"] = goal }
+        guard let out = try? JSONSerialization.data(withJSONObject: snapshot) else { return }
+        try? out.write(to: dir.appendingPathComponent("widget.json"), options: protection)
+    }
+
+    // MARK: Backup folder (survives deleting the app or a revoked certificate)
+
+    private var folderBookmarkURL: URL { support.appendingPathComponent("backup-folder.bookmark") }
+
+    func setBackupFolder(_ url: URL) {
+        guard url.startAccessingSecurityScopedResource() else {
+            send("toast", ["text": "Trendline can't use that folder. Try another one."]); return
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+        guard let bookmark = try? url.bookmarkData(),
+              (try? bookmark.write(to: folderBookmarkURL, options: protection)) != nil else {
+            send("toast", ["text": "Trendline can't use that folder. Try another one."]); return
+        }
+        let defaults = UserDefaults.standard
+        defaults.set(url.lastPathComponent, forKey: "backupFolderName")
+        defaults.removeObject(forKey: "backupFolderLast")
+        defaults.removeObject(forKey: "backupFolderError")
+        backupNow()
+    }
+
+    private func removeBackupFolder() {
+        try? fm.removeItem(at: folderBookmarkURL)
+        ["backupFolderName", "backupFolderLast", "backupFolderError"].forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        backupInfo()
+    }
+
+    /// Writes every backup straight away and reports how it went.
+    private func backupNow() {
+        backupQueue.async {
+            guard let text = self.loadState() else { self.send("toast", ["text": "Nothing to back up yet."]); return }
+            let data = Data(text.utf8)
+            self.writeRotating(data, in: self.backupsDir, keep: 8, options: self.protection)
+            self.writeWidgetSnapshot(data)
+            self.pendingFolderData = nil
+            var message = "Backed up on this iPhone"
+            if self.fm.fileExists(atPath: self.folderBookmarkURL.path) {
+                message = self.writeFolderBackup(data) ? "Backed up to your folder" : "Couldn't write to your backup folder"
+            }
+            self.send("toast", ["text": message])
+            self.backupInfo()
+        }
+    }
+
+    /// Waits a moment so a burst of saves becomes one write to the folder. Runs on backupQueue.
+    private func scheduleFolderBackup(_ data: Data) {
+        let idle = pendingFolderData == nil
+        pendingFolderData = data
+        guard idle else { return }
+        backupQueue.asyncAfter(deadline: .now() + 3) {
+            guard let latest = self.pendingFolderData else { return }
+            self.pendingFolderData = nil
+            self.writeFolderBackup(latest)
+        }
+    }
+
+    /// Same rotation as the local backups (12 weekly copies), coordinated so iCloud Drive syncs it safely.
+    @discardableResult
+    private func writeFolderBackup(_ data: Data) -> Bool {
+        guard let bookmark = try? Data(contentsOf: folderBookmarkURL) else { return false }
+        let defaults = UserDefaults.standard
+        var stale = false
+        guard let folder = try? URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &stale) else {
+            defaults.set("The backup folder can't be found. Choose it again.", forKey: "backupFolderError"); return false
+        }
+        guard folder.startAccessingSecurityScopedResource() else {
+            defaults.set("Trendline lost access to the backup folder. Choose it again.", forKey: "backupFolderError"); return false
+        }
+        defer { folder.stopAccessingSecurityScopedResource() }
+        if stale, let fresh = try? folder.bookmarkData() { try? fresh.write(to: folderBookmarkURL, options: protection) }
+        var ok = false
+        var coordinationError: NSError?
+        NSFileCoordinator().coordinate(writingItemAt: folder, options: [], error: &coordinationError) { dir in
+            ok = self.writeRotating(data, in: dir, keep: 12, options: .atomic)
+        }
+        if ok {
+            defaults.set(Date(), forKey: "backupFolderLast")
+            defaults.removeObject(forKey: "backupFolderError")
+        } else {
+            defaults.set("The last copy to the backup folder failed. It will try again on the next change.", forKey: "backupFolderError")
+        }
+        return ok
     }
 
     // MARK: Messages from the page
@@ -315,6 +445,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                      text: body["body"] as? String ?? "Step on the scale before breakfast.")
         case "backupInfo":
             backupInfo()
+        case "backupNow":
+            backupNow()
+        case "chooseBackupFolder":
+            FolderPicker.shared.start(from: webView)
+        case "removeBackupFolder":
+            removeBackupFolder()
         default:
             break
         }
@@ -505,7 +641,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             newPrefs["healthSince"] = Bridge.day(Date())
             state["settings"] = newPrefs
             guard let data = try? JSONSerialization.data(withJSONObject: state) else { self.stateLock.unlock(); return }
-            try? data.write(to: self.stateURL, options: .atomic)
+            try? data.write(to: self.stateURL, options: self.protection)
             self.stateLock.unlock()
             self.backupQueue.async { self.writeBackups(data) }
 
@@ -969,6 +1105,25 @@ enum APIKeys {
         guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess,
               let data = out as? Data, let text = String(data: data, encoding: .utf8), !text.isEmpty else { return nil }
         return text
+    }
+}
+
+/// Lets the person pick a folder (for example in iCloud Drive) for automatic backup copies.
+final class FolderPicker: NSObject, UIDocumentPickerDelegate {
+    static let shared = FolderPicker()
+
+    func start(from webView: WKWebView?) {
+        DispatchQueue.main.async {
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
+            picker.delegate = self
+            guard var top = webView?.window?.rootViewController else { return }
+            while let presented = top.presentedViewController { top = presented }
+            top.present(picker, animated: true)
+        }
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        if let url = urls.first { Bridge.shared.setBackupFolder(url) }
     }
 }
 

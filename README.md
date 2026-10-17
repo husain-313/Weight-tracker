@@ -17,6 +17,7 @@ A personal iOS weight tracker. It smooths daily weigh-ins into a trend line so w
 - **Apple Watch:** Activity (steps, active energy, workouts), Fitness (resting heart rate, VO₂ max) and Energy balance (deficit from your trend, burn from the watch, estimated and logged intake)
 - Rearrangeable Summary cards
 - Automatic backups in Files › On My iPhone › Trendline › Backups, plus manual backup/restore and CSV export
+- **Backup folder:** pick a folder in iCloud Drive and a copy is written there after every change, so the data survives a revoked signing certificate or deleting the app
 
 ## Get the app
 Every push to `main` builds an unsigned `TrendlineScale.ipa` with GitHub Actions and attaches it to a new release under **Releases**.
