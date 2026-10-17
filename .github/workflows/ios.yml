@@ -2,7 +2,7 @@ name: Build iOS app (IPA)
 
 on:
   push:
-    branches: [main, update-v2]
+    branches: [main, redesign]
   workflow_dispatch:
 
 permissions:
@@ -61,16 +61,17 @@ jobs:
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
-          if [ -d "$(xcrun --sdk iphoneos --show-sdk-path)/System/Library/Frameworks/FoundationModels.framework" ]; then FM=yes; else FM=no; fi
           cat > ios/release-notes.md <<NOTES
-          Version 1.8:
-          - Backup folder: pick a folder in iCloud Drive and a copy is saved there after every change, so your data survives a revoked certificate or deleting the app
-          - Back up now, with the time of the last copy shown in Settings
-          - Settings › About shows the bundle ID and whether widget data sharing (App Group) works with your signing
-          - Saved data now carries a format version, and backups from a newer version are refused instead of half-restored
+          Version 2.2:
+          - A new night-slate look: blue for the trend, amber for your goal, green for moving toward it and red for moving away
+          - The chart shades the gap between each weigh-in and the trend: red above, green below
+          - "Last 30 days" tiles: high, latest, trend and low at a glance
+          - History shows each day's weekly change as a coloured arrow, with labelled columns and a "You started!" marker
+          - Weigh in with a number pad, and step through days with arrows
+          - The tab bar floats as glass, with the add button in its own circle beside it
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
-          Built with $XC, iOS SDK $SDK. Apple Intelligence offline fallback included: $FM.
+          Built with $XC, iOS SDK $SDK.
           NOTES
 
       - name: Publish release with the IPA
@@ -78,6 +79,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 1.8 (build ${{ github.run_number }})
+          name: Trendline 2.2 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa

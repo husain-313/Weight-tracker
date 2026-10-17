@@ -24,10 +24,9 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
-        NSHealthShareUsageDescription: Trendline reads your weight and body composition from your smart scale, and steps, energy burned, workouts, sleep, resting heart rate and VO2 max from your Apple Watch.
+        NSHealthShareUsageDescription: Trendline reads your weight from Apple Health, for example from your smart scale.
         NSHealthUpdateUsageDescription: Trendline saves the weights you log to Apple Health.
         NSFaceIDUsageDescription: Trendline uses Face ID to keep your weight data private.
-        NSCameraUsageDescription: Trendline uses the camera to scan food barcodes.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.husain313.trendline
@@ -36,5 +35,5 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: TrendlineScale.entitlements
-        MARKETING_VERSION: "1.8"
+        MARKETING_VERSION: "2.2"
         CURRENT_PROJECT_VERSION: "1"

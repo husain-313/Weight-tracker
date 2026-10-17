@@ -3,18 +3,13 @@ import WebKit
 import HealthKit
 import UserNotifications
 import LocalAuthentication
-import VisionKit
-import AVFoundation
 import UniformTypeIdentifiers
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
 
 /// Matches the page background in both themes so there is never a flash on launch or rotation.
 let appBackground = UIColor { traits in
     traits.userInterfaceStyle == .dark
-        ? UIColor(red: 14/255, green: 17/255, blue: 22/255, alpha: 1)
-        : UIColor(red: 242/255, green: 243/255, blue: 247/255, alpha: 1)
+        ? UIColor(red: 14/255, green: 17/255, blue: 24/255, alpha: 1)
+        : UIColor(red: 242/255, green: 244/255, blue: 248/255, alpha: 1)
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
@@ -127,16 +122,12 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private let fm = FileManager.default
     private let health = HKHealthStore()
     private let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass)!
-    private let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage)!
-    private let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass)!
-    private var readTypes: Set<HKObjectType> { [massType, fatType, leanType] }
     private var observing = false
     private let stateLock = NSLock()
     private var themeStyle: UIUserInterfaceStyle = .unspecified
     private let backupQueue = DispatchQueue(label: "trendline.backup")
     /// Readable after the first unlock, so background imports from Apple Health still work while the phone is locked.
     private let protection: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
-    static let appGroup = "group.com.husain313.trendline"
     private var pendingFolderData: Data?
 
     // MARK: Files
@@ -155,7 +146,10 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     }
 
     /// Version 1.0 kept its data in Documents; move it out of sight of the Files app.
+    /// Version 2.0 dropped food logging, so the AI service keys it kept in the Keychain go too.
     func migrate() {
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword,
+                       kSecAttrService as String: "trendline.apikeys"] as CFDictionary)
         let old = documents.appendingPathComponent("trendline-state.json")
         guard fm.fileExists(atPath: old.path) else { return }
         if fm.fileExists(atPath: stateURL.path) { try? fm.removeItem(at: old) }
@@ -187,10 +181,9 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         send("foreground", [:])
     }
 
-    /// Runs on backupQueue after every save: local backups, the widget snapshot and the backup folder.
+    /// Runs on backupQueue after every save: local backups and the backup folder.
     private func writeBackups(_ data: Data) {
         writeRotating(data, in: backupsDir, keep: 8, options: protection)
-        writeWidgetSnapshot(data)
         scheduleFolderBackup(data)
     }
 
@@ -225,7 +218,6 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             let latest = self.backupsDir.appendingPathComponent("trendline-latest.json")
             let iso = ISO8601DateFormatter()
             var info: [String: Any] = ["count": self.datedBackups(in: self.backupsDir).count,
-                                       "group": self.sharedContainer != nil,
                                        "bundle": Bundle.main.bundleIdentifier ?? ""]
             if let date = self.modified(latest) { info["last"] = iso.string(from: date) }
             let defaults = UserDefaults.standard
@@ -236,31 +228,6 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             }
             self.send("backup-info", info)
         }
-    }
-
-    // MARK: Shared data for widgets (App Group)
-
-    /// The App Group container, or nil when the signing didn't grant the group.
-    var sharedContainer: URL? { fm.containerURL(forSecurityApplicationGroupIdentifier: Bridge.appGroup) }
-
-    /// A small summary widgets can read without the full state. The app's own data stays in its
-    /// private container, so losing the group after a re-sign never loses anything.
-    private func writeWidgetSnapshot(_ data: Data) {
-        guard let dir = sharedContainer,
-              let state = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
-        let prefs = settings(of: state)
-        let entries: [[Any]] = (state["entries"] as? [[String: Any]] ?? []).compactMap { e -> [Any]? in
-            guard let day = e["date"] as? String, let kg = e["kg"] as? Double else { return nil }
-            return [day, kg]
-        }
-        var snapshot: [String: Any] = ["version": 1,
-                                       "updated": ISO8601DateFormatter().string(from: Date()),
-                                       "unit": prefs["unit"] as? String ?? "kg",
-                                       "smooth": prefs["smooth"] as? Double ?? 0.1,
-                                       "entries": Array(entries.suffix(400))]
-        if let goal = prefs["goal"] as? Double { snapshot["goal"] = goal }
-        guard let out = try? JSONSerialization.data(withJSONObject: snapshot) else { return }
-        try? out.write(to: dir.appendingPathComponent("widget.json"), options: protection)
     }
 
     // MARK: Backup folder (survives deleting the app or a revoked certificate)
@@ -295,7 +262,6 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             guard let text = self.loadState() else { self.send("toast", ["text": "Nothing to back up yet."]); return }
             let data = Data(text.utf8)
             self.writeRotating(data, in: self.backupsDir, keep: 8, options: self.protection)
-            self.writeWidgetSnapshot(data)
             self.pendingFolderData = nil
             var message = "Backed up on this iPhone"
             if self.fm.fileExists(atPath: self.folderBookmarkURL.path) {
@@ -390,41 +356,18 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 }
             }
-        case "shareImage":
-            if let name = body["name"] as? String, let url = body["data"] as? String,
-               let comma = url.firstIndex(of: ","),
-               let data = Data(base64Encoded: String(url[url.index(after: comma)...])) {
-                share(name: name, data: data)
-            }
         case "theme":
             let mode = body["mode"] as? String ?? "auto"
             themeStyle = mode == "dark" ? .dark : mode == "light" ? .light : .unspecified
             applyTheme()
         case "http":
             performHTTP(body)
-        case "setKey":
-            if let name = body["name"] as? String, APIKeys.names.contains(name) {
-                APIKeys.set(name, (body["value"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-            sendKeyStatus()
-        case "keyStatus":
-            sendKeyStatus()
-        case "localAI":
-            runLocalAI(id: (body["id"] as? NSNumber)?.intValue ?? 0,
-                       instructions: body["instructions"] as? String ?? "",
-                       prompt: body["prompt"] as? String ?? "")
         case "openURL":
             if let text = body["url"] as? String, let url = URL(string: text), url.scheme == "https" {
                 DispatchQueue.main.async { UIApplication.shared.open(url) }
             }
         case "copy":
             if let text = body["text"] as? String { DispatchQueue.main.async { UIPasteboard.general.string = text } }
-        case "scanBarcode":
-            BarcodeScanner.shared.start(from: webView)
-        case "activityAuthorize":
-            activityAuthorize()
-        case "activityRead":
-            activityRead(days: (body["days"] as? NSNumber)?.intValue ?? 60)
         case "lockSet":
             let enable = body["enabled"] as? Bool ?? false
             let context = LAContext()
@@ -468,70 +411,38 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     private func healthAuthorize(write: Bool) {
         guard HKHealthStore.isHealthDataAvailable() else { send("health-status", ["available": false]); return }
-        health.requestAuthorization(toShare: write ? [massType] : [], read: readTypes) { ok, error in
+        health.requestAuthorization(toShare: write ? [massType] : [], read: [massType]) { ok, error in
             self.startBackgroundHealth()
             self.send("health-status", ["available": true, "ok": ok, "error": error?.localizedDescription ?? ""])
         }
     }
 
-    /// First reading of each day from other apps and scales: weight, body fat % and lean mass.
-    private func fetchDays(since: Date, completion: @escaping ([String: [String: Double]], Error?) -> Void) {
-        fetchDaysDetailed(since: since) { days, _, _, error in completion(days, error) }
-    }
-
-    /// days: first reading per calendar day from other apps; weights: every weight from other apps;
+    /// days: first weight of each calendar day from other apps and scales, as kg and t (ms);
     /// own: weights this app wrote (used to restore entries after a reinstall or erase).
-    private func fetchDaysDetailed(since: Date, completion: @escaping ([String: [String: Double]], [[Double]], [[Double]], Error?) -> Void) {
+    private func fetchDays(since: Date, completion: @escaping ([String: [String: Double]], [[Double]], Error?) -> Void) {
         let mine = HKSource.default()
         let predicate = HKQuery.predicateForSamples(withStart: since, end: nil, options: [])
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
-        let group = DispatchGroup()
-        let lock = NSLock()
-        var days: [String: [String: Double]] = [:]
-        var weights: [[Double]] = []
-        var own: [[Double]] = []
-        var firstError: Error?
-        let specs: [(HKQuantityType, String, HKUnit, Double)] = [
-            (massType, "kg", .gramUnit(with: .kilo), 1),
-            (fatType, "fat", .percent(), 100),
-            (leanType, "lean", .gramUnit(with: .kilo), 1),
-        ]
-        for (type, key, unit, scale) in specs {
-            group.enter()
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
-                                      sortDescriptors: [sort]) { _, samples, error in
-                lock.lock()
-                if let error = error, key == "kg" { firstError = error }
-                for case let sample as HKQuantitySample in samples ?? [] {
-                    if sample.sourceRevision.source == mine {
-                        if key == "kg" {
-                            own.append([(sample.startDate.timeIntervalSince1970 * 1000).rounded(),
-                                        (sample.quantity.doubleValue(for: unit) * 1000).rounded() / 1000])
-                        }
-                        continue
-                    }
-                    if key == "kg" {
-                        let kg = sample.quantity.doubleValue(for: unit)
-                        weights.append([(sample.startDate.timeIntervalSince1970 * 1000).rounded(), (kg * 1000).rounded() / 1000])
-                    }
-                    let day = Bridge.day(sample.startDate)
-                    if days[day]?[key] == nil {
-                        let value = sample.quantity.doubleValue(for: unit) * scale
-                        days[day, default: [:]][key] = (value * 1000).rounded() / 1000
-                        if key == "kg" { days[day, default: [:]]["t"] = (sample.startDate.timeIntervalSince1970 * 1000).rounded() }
-                    }
-                }
-                lock.unlock()
-                group.leave()
+        let kilo = HKUnit.gramUnit(with: .kilo)
+        let query = HKSampleQuery(sampleType: massType, predicate: predicate, limit: HKObjectQueryNoLimit,
+                                  sortDescriptors: [sort]) { _, samples, error in
+            var days: [String: [String: Double]] = [:]
+            var own: [[Double]] = []
+            for case let sample as HKQuantitySample in samples ?? [] {
+                let t = (sample.startDate.timeIntervalSince1970 * 1000).rounded()
+                let kg = (sample.quantity.doubleValue(for: kilo) * 1000).rounded() / 1000
+                if sample.sourceRevision.source == mine { own.append([t, kg]); continue }
+                let day = Bridge.day(sample.startDate)
+                if days[day] == nil { days[day] = ["kg": kg, "t": t] }
             }
-            health.execute(query)
+            completion(days, own, error)
         }
-        group.notify(queue: .global()) { completion(days, weights.sorted { $0[0] < $1[0] }, own.sorted { $0[0] < $1[0] }, firstError) }
+        health.execute(query)
     }
 
     private func healthRead(since: String) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        fetchDaysDetailed(since: Bridge.date(since) ?? .distantPast) { days, weights, own, error in
+        fetchDays(since: Bridge.date(since) ?? .distantPast) { days, own, error in
             if let error = error as NSError?,
                error.code != HKError.Code.errorAuthorizationNotDetermined.rawValue,
                error.code != HKError.Code.errorAuthorizationDenied.rawValue {
@@ -543,7 +454,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 for (k, v) in values { item[k] = v }
                 return item
             }
-            self.send("health-samples", ["samples": list, "weights": weights, "own": own])
+            self.send("health-samples", ["samples": list, "own": own])
         }
     }
 
@@ -603,7 +514,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     private func importInBackground(_ done: @escaping () -> Void) {
         guard let since = Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: Date())) else { done(); return }
-        fetchDays(since: since) { days, _ in
+        fetchDays(since: since) { days, _, _ in
             defer { done() }
             self.stateLock.lock()
             guard let text = try? String(contentsOf: self.stateURL, encoding: .utf8),
@@ -621,14 +532,10 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 if let i = entries.firstIndex(where: { $0["date"] as? String == day }) {
                     if entries[i]["src"] as? String == "health", let kg = values["kg"],
                        abs((entries[i]["kg"] as? Double ?? 0) - kg) > 0.005 { entries[i]["kg"] = kg; changed = true }
-                    if let fat = values["fat"], entries[i]["fat"] as? Double != fat { entries[i]["fat"] = fat; changed = true }
-                    if let lean = values["lean"], entries[i]["lean"] as? Double != lean { entries[i]["lean"] = lean; changed = true }
                     if entries[i]["t"] == nil, let t = values["t"] { entries[i]["t"] = t; changed = true }
                 } else if let kg = values["kg"], kg > 20, kg < 400 {
                     var entry: [String: Any] = ["id": "h" + day, "date": day, "kg": kg, "note": "", "src": "health"]
                     if let t = values["t"] { entry["t"] = t }
-                    if let fat = values["fat"] { entry["fat"] = fat }
-                    if let lean = values["lean"] { entry["lean"] = lean }
                     entries.append(entry)
                     addedDays.append(day)
                     changed = true
@@ -680,9 +587,6 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             let delta = t - p
             body += abs(delta) < 0.05 ? " · steady" : (delta < 0 ? " · ↓ \(f(abs(delta)))" : " · ↑ \(f(delta))")
         }
-        if let fat = entries.first(where: { $0["date"] as? String == day })?["fat"] as? Double {
-            body += String(format: " · %.1f%% fat", fat)
-        }
         let content = UNMutableNotificationContent()
         content.title = "Weighed in: \(f(weight)) \(unit)"
         content.body = body
@@ -690,37 +594,16 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "weighed-\(day)", content: content, trigger: nil))
     }
 
-    // MARK: Network bridge (keys never leave the Keychain except to their own service)
+    // MARK: Network bridge (only the update check talks to the internet)
 
-    private static let keyHosts: [String: String] = [
-        "gemini": "generativelanguage.googleapis.com",
-        "groq": "api.groq.com",
-        "usda": "api.nal.usda.gov",
-        "claude": "api.anthropic.com",
-    ]
-    private static let allowedHosts: Set<String> = Set(keyHosts.values).union(["world.openfoodfacts.org", "api.github.com"])
+    private static let allowedHosts: Set<String> = ["api.github.com"]
 
     private func performHTTP(_ body: [String: Any]) {
-        guard let id = (body["id"] as? NSNumber)?.intValue, var urlString = body["url"] as? String else { return }
-        var headers = body["headers"] as? [String: String] ?? [:]
-        guard let host = URL(string: urlString)?.host, Bridge.allowedHosts.contains(host) else {
+        guard let id = (body["id"] as? NSNumber)?.intValue, let urlString = body["url"] as? String else { return }
+        let headers = body["headers"] as? [String: String] ?? [:]
+        guard let url = URL(string: urlString), url.scheme == "https", let host = url.host, Bridge.allowedHosts.contains(host) else {
             send("http-result", ["id": id, "status": 0, "body": "", "error": "host-not-allowed"]); return
         }
-        var missing: String?
-        func fill(_ text: String) -> String {
-            var out = text
-            for (name, keyHost) in Bridge.keyHosts where out.contains("{{\(name)}}") {
-                if keyHost == host, let key = APIKeys.get(name) { out = out.replacingOccurrences(of: "{{\(name)}}", with: key) }
-                else { missing = name }
-            }
-            return out
-        }
-        urlString = fill(urlString)
-        headers = headers.mapValues(fill)
-        if let missing = missing {
-            send("http-result", ["id": id, "status": 0, "body": "", "error": "missing-key:\(missing)"]); return
-        }
-        guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url, timeoutInterval: 30)
         request.httpMethod = body["method"] as? String ?? "GET"
         for (k, v) in headers { request.setValue(v, forHTTPHeaderField: k) }
@@ -734,211 +617,6 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             if let error = error { payload["error"] = error.localizedDescription }
             self.send("http-result", payload)
         }.resume()
-    }
-
-    private func sendKeyStatus() {
-        var status: [String: Any] = [:]
-        for name in APIKeys.names { status[name] = APIKeys.get(name) != nil }
-        status["local"] = localAIAvailable()
-        send("key-status", status)
-    }
-
-    // MARK: On-device AI (Apple Intelligence, iOS 26+)
-
-    private func localAIAvailable() -> Bool {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            if case .available = SystemLanguageModel.default.availability { return true }
-        }
-        #endif
-        return false
-    }
-
-    private func runLocalAI(id: Int, instructions: String, prompt: String) {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *), localAIAvailable() {
-            Task {
-                do {
-                    let session = LanguageModelSession(instructions: instructions)
-                    let response = try await session.respond(to: prompt)
-                    self.send("local-ai", ["id": id, "ok": true, "text": response.content])
-                } catch {
-                    self.send("local-ai", ["id": id, "ok": false, "error": error.localizedDescription])
-                }
-            }
-            return
-        }
-        #endif
-        send("local-ai", ["id": id, "ok": false, "error": "unavailable"])
-    }
-
-    // MARK: Apple Watch activity
-
-    private var activityTypes: Set<HKObjectType> {
-        var set: Set<HKObjectType> = [HKObjectType.workoutType()]
-        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { set.insert(sleep) }
-        for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .basalEnergyBurned, .restingHeartRate, .vo2Max, .heartRate] {
-            if let t = HKQuantityType.quantityType(forIdentifier: id) { set.insert(t) }
-        }
-        return set
-    }
-
-    private func activityAuthorize() {
-        guard HKHealthStore.isHealthDataAvailable() else { send("activity", ["error": "unavailable"]); return }
-        health.requestAuthorization(toShare: [], read: activityTypes) { _, _ in self.activityRead(days: 60) }
-    }
-
-    private func dailyStats(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int, sum: Bool,
-                            done: @escaping ([String: Double]) -> Void) {
-        guard let type = HKQuantityType.quantityType(forIdentifier: id) else { done([:]); return }
-        let cal = Calendar.current
-        let end = Date()
-        let anchor = cal.startOfDay(for: end)
-        guard let start = cal.date(byAdding: .day, value: -days, to: anchor) else { done([:]); return }
-        let query = HKStatisticsCollectionQuery(quantityType: type,
-                                                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end),
-                                                options: sum ? .cumulativeSum : .discreteAverage,
-                                                anchorDate: anchor, intervalComponents: DateComponents(day: 1))
-        query.initialResultsHandler = { _, results, _ in
-            var out: [String: Double] = [:]
-            results?.enumerateStatistics(from: start, to: end) { stats, _ in
-                let q = sum ? stats.sumQuantity() : stats.averageQuantity()
-                if let v = q?.doubleValue(for: unit) { out[Bridge.day(stats.startDate)] = (v * 10).rounded() / 10 }
-            }
-            done(out)
-        }
-        health.execute(query)
-    }
-
-    /// Sums in fixed time buckets, returned as [[startMs, value]] for non-empty buckets.
-    private func buckets(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int, minutes: Int, sum: Bool,
-                         done: @escaping ([[Double]]) -> Void) {
-        guard let type = HKQuantityType.quantityType(forIdentifier: id) else { done([]); return }
-        let cal = Calendar.current
-        let end = Date()
-        let anchor = cal.startOfDay(for: end)
-        guard let start = cal.date(byAdding: .day, value: -days, to: anchor) else { done([]); return }
-        let query = HKStatisticsCollectionQuery(quantityType: type,
-                                                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end),
-                                                options: sum ? .cumulativeSum : .discreteAverage,
-                                                anchorDate: anchor, intervalComponents: DateComponents(minute: minutes))
-        query.initialResultsHandler = { _, results, _ in
-            var out: [[Double]] = []
-            results?.enumerateStatistics(from: start, to: end) { stats, _ in
-                let q = sum ? stats.sumQuantity() : stats.averageQuantity()
-                if let v = q?.doubleValue(for: unit), v > 0 {
-                    out.append([(stats.startDate.timeIntervalSince1970 * 1000).rounded(), (v * 10).rounded() / 10])
-                }
-            }
-            done(out)
-        }
-        health.execute(query)
-    }
-
-    private func activityRead(days: Int) {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
-        let group = DispatchGroup()
-        let lock = NSLock()
-        var result: [String: [String: Double]] = [:]
-        let bpm = HKUnit.count().unitDivided(by: .minute())
-        let specs: [(String, HKQuantityTypeIdentifier, HKUnit, Bool)] = [
-            ("steps", .stepCount, .count(), true),
-            ("active", .activeEnergyBurned, .kilocalorie(), true),
-            ("basal", .basalEnergyBurned, .kilocalorie(), true),
-            ("rhr", .restingHeartRate, bpm, false),
-            ("vo2", .vo2Max, HKUnit(from: "ml/kg*min"), false),
-        ]
-        for (key, id, unit, sum) in specs {
-            group.enter()
-            dailyStats(id, unit: unit, days: days, sum: sum) { values in
-                lock.lock(); result[key] = values; lock.unlock(); group.leave()
-            }
-        }
-        var series: [String: [[Double]]] = [:]
-        let bucketSpecs: [(String, HKQuantityTypeIdentifier, HKUnit)] = [
-            ("stepsT", .stepCount, .count()),
-            ("activeT", .activeEnergyBurned, .kilocalorie()),
-            ("basalT", .basalEnergyBurned, .kilocalorie()),
-        ]
-        for (key, id, unit) in bucketSpecs {
-            group.enter()
-            buckets(id, unit: unit, days: days, minutes: 30, sum: true) { b in
-                lock.lock(); series[key] = b; lock.unlock(); group.leave()
-            }
-        }
-        // Watch worn = heart-rate readings. A gap of 4+ hours then readings again = woke up and put the watch on.
-        var wakes: [Double] = []
-        group.enter()
-        buckets(.heartRate, unit: bpm, days: days, minutes: 15, sum: false) { b in
-            var prev: Double?
-            var found: [Double] = []
-            for item in b {
-                if let p = prev, item[0] - p >= 4 * 3600 * 1000 { found.append(item[0]) }
-                prev = item[0] + 15 * 60 * 1000
-            }
-            lock.lock(); wakes = found; lock.unlock(); group.leave()
-        }
-        // Sleep sessions: asleep samples joined when less than 90 minutes apart; 3+ hours counts as a night's sleep.
-        var sleeps: [[Double]] = []
-        if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            group.enter()
-            let since = Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-            let sq = HKSampleQuery(sampleType: sleepType, predicate: HKQuery.predicateForSamples(withStart: since, end: nil, options: []),
-                                   limit: HKObjectQueryNoLimit,
-                                   sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, _ in
-                let asleep: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-                                        HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue]
-                var sessions: [[Double]] = []
-                for case let sample as HKCategorySample in samples ?? [] where asleep.contains(sample.value) {
-                    let a = sample.startDate.timeIntervalSince1970 * 1000, b = sample.endDate.timeIntervalSince1970 * 1000
-                    if var last = sessions.last, a - last[1] < 90 * 60 * 1000 {
-                        last[1] = max(last[1], b); sessions[sessions.count - 1] = last
-                    } else { sessions.append([a, b]) }
-                }
-                lock.lock(); sleeps = sessions.filter { $0[1] - $0[0] >= 3 * 3600 * 1000 }.map { [$0[0].rounded(), $0[1].rounded()] }; lock.unlock()
-                group.leave()
-            }
-            health.execute(sq)
-        }
-        var workouts: [[String: Any]] = []
-        group.enter()
-        let start = Calendar.current.date(byAdding: .day, value: -days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
-        let wq = HKSampleQuery(sampleType: HKObjectType.workoutType(),
-                               predicate: HKQuery.predicateForSamples(withStart: start, end: nil, options: []),
-                               limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
-            for case let w as HKWorkout in samples ?? [] {
-                workouts.append(["date": Bridge.day(w.startDate), "t": (w.startDate.timeIntervalSince1970 * 1000).rounded(),
-                                 "min": (w.duration / 60).rounded(), "type": Bridge.workoutName(w.workoutActivityType)])
-            }
-            group.leave()
-        }
-        health.execute(wq)
-        group.notify(queue: .global()) {
-            var payload: [String: Any] = ["workouts": workouts, "wakes": wakes, "sleeps": sleeps]
-            for (k, v) in result { payload[k] = v }
-            for (k, v) in series { payload[k] = v }
-            self.send("activity", payload)
-        }
-    }
-
-    static func workoutName(_ type: HKWorkoutActivityType) -> String {
-        switch type {
-        case .running: return "Running"
-        case .walking: return "Walking"
-        case .cycling: return "Cycling"
-        case .swimming: return "Swimming"
-        case .hiking: return "Hiking"
-        case .traditionalStrengthTraining, .functionalStrengthTraining: return "Strength"
-        case .highIntensityIntervalTraining: return "HIIT"
-        case .elliptical: return "Elliptical"
-        case .rowing: return "Rowing"
-        case .yoga: return "Yoga"
-        case .coreTraining: return "Core"
-        case .crossTraining: return "Cross training"
-        case .soccer: return "Football"
-        case .tennis: return "Tennis"
-        default: return "Workout"
-        }
     }
 
     // MARK: Reminders
@@ -1078,36 +756,6 @@ struct WebView: UIViewRepresentable {
 }
 
 
-/// API keys live only in this iPhone's Keychain; the page never sees them.
-enum APIKeys {
-    static let names = ["gemini", "groq", "usda", "claude"]
-    private static let service = "trendline.apikeys"
-
-    static func set(_ name: String, _ value: String) {
-        let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                   kSecAttrService as String: service,
-                                   kSecAttrAccount as String: name]
-        SecItemDelete(base as CFDictionary)
-        guard !value.isEmpty else { return }
-        var add = base
-        add[kSecValueData as String] = Data(value.utf8)
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(add as CFDictionary, nil)
-    }
-
-    static func get(_ name: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                    kSecAttrService as String: service,
-                                    kSecAttrAccount as String: name,
-                                    kSecReturnData as String: true,
-                                    kSecMatchLimit as String: kSecMatchLimitOne]
-        var out: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess,
-              let data = out as? Data, let text = String(data: data, encoding: .utf8), !text.isEmpty else { return nil }
-        return text
-    }
-}
-
 /// Lets the person pick a folder (for example in iCloud Drive) for automatic backup copies.
 final class FolderPicker: NSObject, UIDocumentPickerDelegate {
     static let shared = FolderPicker()
@@ -1124,47 +772,5 @@ final class FolderPicker: NSObject, UIDocumentPickerDelegate {
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         if let url = urls.first { Bridge.shared.setBackupFolder(url) }
-    }
-}
-
-/// Camera barcode scanner for packaged food (VisionKit).
-final class BarcodeScanner: NSObject, DataScannerViewControllerDelegate {
-    static let shared = BarcodeScanner()
-    private weak var navigation: UINavigationController?
-
-    func start(from webView: WKWebView?) {
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            DispatchQueue.main.async {
-                guard granted else { Bridge.shared.send("barcode", ["error": "camera-denied"]); return }
-                guard DataScannerViewController.isSupported, DataScannerViewController.isAvailable else {
-                    Bridge.shared.send("barcode", ["error": "unavailable"]); return
-                }
-                let scanner = DataScannerViewController(recognizedDataTypes: [.barcode()], qualityLevel: .balanced,
-                                                        recognizesMultipleItems: false, isHighFrameRateTrackingEnabled: false,
-                                                        isHighlightingEnabled: true)
-                scanner.delegate = self
-                scanner.title = "Scan a barcode"
-                let nav = UINavigationController(rootViewController: scanner)
-                scanner.navigationItem.leftBarButtonItem = UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { _ in
-                    scanner.stopScanning(); nav.dismiss(animated: true)
-                })
-                self.navigation = nav
-                guard var top = webView?.window?.rootViewController else { return }
-                while let presented = top.presentedViewController { top = presented }
-                top.present(nav, animated: true) { try? scanner.startScanning() }
-            }
-        }
-    }
-
-    func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-        for item in addedItems {
-            if case .barcode(let barcode) = item, let code = barcode.payloadStringValue {
-                dataScanner.stopScanning()
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                navigation?.dismiss(animated: true)
-                Bridge.shared.send("barcode", ["code": code])
-                return
-            }
-        }
     }
 }
