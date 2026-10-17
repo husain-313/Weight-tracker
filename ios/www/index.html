@@ -301,7 +301,18 @@ const DEFAULTS = { unit:"kg", goal:null, start:null, height:null, smooth:0.1, th
   healthRead:false, healthWrite:false, healthSince:null, healthFrom:null, healthIgnore:[], remind:false, remindTime:"07:30", notifyWeigh:true,
   commit:null, goalSince:null, celebrated:null, cards:null, cols:null, haptics:true, lock:false, actRead:false, dayMode:"awake", dayCutoff:5, dayStarts:{}, sleepAsked:false, updateSeen:null, updateChecked:0,
   models:{ gemini:"gemini-2.5-flash", groq:"llama-3.3-70b-versatile", claude:"claude-haiku-5-5" } };
-let S = { entries:[], settings:{...DEFAULTS}, food:{}, foodCache:{}, activity:null };
+// Saved-data format. Bump SCHEMA and add MIGRATIONS[old] when the shape of saved data changes.
+const SCHEMA = 2;
+const MIGRATIONS = {
+  // 1: data from before versioning. Nothing to change.
+};
+let S = { schema:SCHEMA, entries:[], settings:{...DEFAULTS}, food:{}, foodCache:{}, activity:null };
+
+function upgrade(d){
+  for (let v = d.schema || 1; v < SCHEMA; v++) if (MIGRATIONS[v]) MIGRATIONS[v](d);
+  d.schema = SCHEMA;
+  return d;
+}
 
 function normalize(){
   const s = S.settings, known = Object.keys(CARD_NAMES);
@@ -318,7 +329,7 @@ function normalize(){
 function load(){
   try{
     const raw = (NATIVE && typeof window.__NATIVE_STATE__ === "string") ? window.__NATIVE_STATE__ : localStorage.getItem(KEY);
-    if (raw){ const d = JSON.parse(raw); S.entries = Array.isArray(d.entries) ? d.entries : []; S.settings = {...DEFAULTS, ...(d.settings || {})}; S.food = d.food || {}; S.foodCache = d.foodCache || {}; S.activity = d.activity || null; }
+    if (raw){ const d = upgrade(JSON.parse(raw)); S.entries = Array.isArray(d.entries) ? d.entries : []; S.settings = {...DEFAULTS, ...(d.settings || {})}; S.food = d.food || {}; S.foodCache = d.foodCache || {}; S.activity = d.activity || null; }
   }catch(e){}
   normalize(); sortEntries();
 }
@@ -487,7 +498,7 @@ window.__native = function(event, p){
   if (event === "health-samples") mergeHealth(firstAfterWake(p.samples || [], p.weights || []), p.error, p.own || []);
   else if (event === "health-status"){ if (p.available === false){ S.settings.healthRead = false; S.settings.healthWrite = false; save(); toast("Apple Health is not available on this device."); if (tab === "settings") render(); } else syncHealth(true); }
   else if (event === "reminder-denied"){ S.settings.remind = false; save(); toast("Notifications are off for Trendline. Turn them on in iOS Settings."); if (tab === "settings") render(); }
-  else if (event === "backup-info"){ backupInfo = p; const el = document.getElementById("bkinfo"); if (el) el.textContent = backupText(); }
+  else if (event === "backup-info"){ const changed = JSON.stringify(p) !== JSON.stringify(backupInfo); backupInfo = p; if (changed && tab === "settings") render(); }
   else if (event === "foreground"){ syncHealth(false); syncActivity(false); checkUpdate(false); scheduleReminder(); foodDay = currentLabel(); if (tab !== "settings") render(); }
   else if (event === "toast") toast(p.text || "");
   else if (event === "http-result"){ const w = httpWait[p.id]; if (w){ delete httpWait[p.id]; p.error ? w.reject(new Error(p.error)) : w.resolve(p); } }
@@ -510,6 +521,7 @@ window.__native = function(event, p){
   else if (event === "state"){
     try{
       const d = JSON.parse(p.json);
+      if (d && Array.isArray(d.entries)) upgrade(d);
       if (d && Array.isArray(d.entries) && JSON.stringify(d) !== JSON.stringify(S)){
         S.entries = d.entries; S.settings = {...DEFAULTS, ...(d.settings || {})}; S.food = d.food || S.food; S.foodCache = d.foodCache || S.foodCache; S.activity = d.activity || S.activity; normalize(); sortEntries();
         if (!document.querySelector(".scrim")) render();
@@ -521,7 +533,17 @@ window.__native = function(event, p){
 function backupText(){
   if (!backupInfo || !backupInfo.last) return "No automatic backup yet. One is saved the next time something changes.";
   const d = new Date(backupInfo.last);
-  return `Last saved ${d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}, ${d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})} · ${backupInfo.count} weekly cop${backupInfo.count === 1 ? "y" : "ies"} kept`;
+  return `Last saved ${stamp(d)} · ${backupInfo.count} weekly cop${backupInfo.count === 1 ? "y" : "ies"} kept`;
+}
+function stamp(d){ return `${d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}, ${d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`; }
+function folderText(){
+  const b = backupInfo;
+  if (!b) return "";
+  if (!b.folder) return "Pick a folder in iCloud Drive. A copy goes there after every change, so your data survives a revoked certificate or deleting the app.";
+  if (b.folderError) return "⚠︎ " + b.folderError;
+  if (!b.folderLast) return "No copy yet.";
+  const d = new Date(b.folderLast), old = Date.now() - d.getTime() > 7 * DAY;
+  return `${old ? "⚠︎ " : ""}Last copy ${stamp(d)}`;
 }
 function syncHealth(full){
   if (!NATIVE || !S.settings.healthRead) return;
@@ -1818,16 +1840,22 @@ function renderSettings(head){
       </div><p class="group-f">Change these only if a service retires a model name.</p>`;
   }
   if (NATIVE) html += `<div class="group-t">Privacy</div><div class="list">${tgl("lk", s.lock, "Lock with Face ID", "Asks for Face ID or your passcode when you open the app")}</div>`;
+  const bk = backupInfo || {};
   html += `<div class="group-t">Backup</div><div class="list">
+      ${NATIVE ? `<button class="item" id="bf"><span class="k">Backup folder<span class="h">${esc(folderText())}</span></span><span class="val" style="color:var(--${bk.folder && !bk.folderError ? "good" : "accent"})">${bk.folder ? esc(bk.folder) : "Choose"}</span></button>
+      <button class="item action" id="bn">Back up now</button>` : ""}
       <button class="item action" id="bx">Export backup</button>
       <button class="item action" id="bc">Export spreadsheet (CSV)</button>
       <button class="item action" id="bi">Restore from backup</button>
     </div>
     <p class="group-f" id="bkinfo">${NATIVE ? backupText() : "Your data stays on this device. Export a backup now and then."}</p>
     ${NATIVE ? `<p class="group-f">Automatic backups are in the Files app: On My iPhone › Trendline › Backups.</p>` : ""}
+    ${NATIVE && bk.folder ? `<div class="list" style="margin-top:8px"><button class="item action" id="bfr">Stop copying to ${esc(bk.folder)}</button></div>` : ""}
     <div class="list" style="margin-top:8px"><button class="item danger" id="bd">Erase all data</button></div>
     ${NATIVE ? `<div class="group-t">About</div><div class="list">
       <div class="item"><span class="k">Version</span><span class="val">${esc(window.__APP_VERSION__ || "—")}</span></div>
+      ${backupInfo ? `<div class="item"><span class="k">Bundle ID</span><span class="val" style="font-size:13px">${esc(bk.bundle || "—")}</span></div>
+      <div class="item"><span class="k">Widget data sharing<span class="h">App Group: needed for widgets</span></span><span class="val" style="color:var(--${bk.group ? "good" : "bad"})">${bk.group ? "✓ Works" : "Not available"}</span></div>` : ""}
       ${latestRelease && latestRelease.build > buildOf(window.__APP_VERSION__) ? `<button class="item action" id="upOpen">Update to ${esc(latestRelease.name.replace(/\s*\(build \d+\)/i, ""))}</button>` : ""}
       <button class="item action" id="upChk">Check for updates</button></div>` : ""}
     <p class="footer">Trendline${window.__APP_VERSION__ ? " " + esc(window.__APP_VERSION__) : ""}</p>`;
@@ -1850,7 +1878,7 @@ function renderSettings(head){
   $("#bi").onclick = pickRestore;
   const bd = $("#bd"); let armed = false;
   bd.onclick = () => { if (!armed){ armed = true; bd.textContent = "Tap again to erase everything"; haptic("warning"); return; }
-    const keepLock = S.settings.lock; S = { entries:[], settings:{...DEFAULTS, lock: keepLock}, food:{}, foodCache:{}, activity:null }; normalize(); save(); applyTheme(); scheduleReminder(); render(); toast("All data erased"); };
+    const keepLock = S.settings.lock; S = { schema:SCHEMA, entries:[], settings:{...DEFAULTS, lock: keepLock}, food:{}, foodCache:{}, activity:null }; normalize(); save(); applyTheme(); scheduleReminder(); render(); toast("All data erased"); };
   if (NATIVE){
     $("#hr").onchange = e => { if (e.target.checked) connectHealth(); else { S.settings.healthRead = false; save(); } haptic("light"); render(); };
     $("#aw").onchange = e => { if (e.target.checked) enableActivity(); else { S.settings.actRead = false; save(); haptic("light"); } };
@@ -1873,6 +1901,9 @@ function renderSettings(head){
     $("#rt").onchange = e => { if (!e.target.value) return; S.settings.remindTime = e.target.value; save(); scheduleReminder(); toast(`Reminder set for ${e.target.value}`); };
     $("#hp").onchange = e => { S.settings.haptics = e.target.checked; save(); haptic("light"); };
     $("#lk").onchange = e => { const want = e.target.checked; e.target.checked = S.settings.lock; nativeCmd("lockSet", { enabled: want }); };
+    $("#bf").onclick = () => { haptic("light"); nativeCmd("chooseBackupFolder"); };
+    $("#bn").onclick = () => { haptic("light"); nativeCmd("backupNow"); };
+    const bfr = $("#bfr"); if (bfr) bfr.onclick = () => { haptic("light"); nativeCmd("removeBackupFolder"); toast("Stopped copying to the folder"); };
     nativeCmd("backupInfo");
     nativeCmd("keyStatus");
     $("#upChk").onclick = () => { haptic("light"); toast("Checking…"); checkUpdate(true); };
@@ -1892,6 +1923,8 @@ function pickRestore(){
 function restoreBackup(text){
   let d; try{ d = JSON.parse(text); }catch(e){ d = null; }
   if (!d || !Array.isArray(d.entries)){ toast("That file isn't a Trendline backup."); haptic("warning"); return; }
+  if ((d.schema || 1) > SCHEMA){ toast("This backup is from a newer Trendline. Update the app first."); haptic("warning"); return; }
+  upgrade(d);
   let added = 0, updated = 0;
   for (const e of d.entries){
     if (!e || !/^\d{4}-\d{2}-\d{2}$/.test(e.date) || !(e.kg > 20 && e.kg < 400)) continue;

@@ -2,7 +2,7 @@ name: Build iOS app (IPA)
 
 on:
   push:
-    branches: [main]
+    branches: [main, update-v2]
   workflow_dispatch:
 
 permissions:
@@ -55,24 +55,29 @@ jobs:
           name: TrendlineScale-ipa
           path: ios/TrendlineScale.ipa
 
+      # Other branches stop at the build artifact, so test builds never show up as an in-app update.
       - name: Write release notes
+        if: github.ref == 'refs/heads/main'
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
           if [ -d "$(xcrun --sdk iphoneos --show-sdk-path)/System/Library/Frameworks/FoundationModels.framework" ]; then FM=yes; else FM=no; fi
           cat > ios/release-notes.md <<NOTES
-          Version 1.7.1:
-          - Connect Apple Health now shows that it's connected and when it's importing from
-          - Weigh-ins this app saved to Health earlier come back after a reinstall or erase (days you deleted stay deleted)
+          Version 1.8:
+          - Backup folder: pick a folder in iCloud Drive and a copy is saved there after every change, so your data survives a revoked certificate or deleting the app
+          - Back up now, with the time of the last copy shown in Settings
+          - Settings › About shows the bundle ID and whether widget data sharing (App Group) works with your signing
+          - Saved data now carries a format version, and backups from a newer version are refused instead of half-restored
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK. Apple Intelligence offline fallback included: $FM.
           NOTES
 
       - name: Publish release with the IPA
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 1.7.1 (build ${{ github.run_number }})
+          name: Trendline 1.8 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa
