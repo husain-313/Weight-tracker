@@ -176,8 +176,18 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .item .k{font-size:17px;min-width:0}
 .item .h{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.3}
 .item .k.wi{display:flex;align-items:center;gap:12px}
-.ic{flex:none;width:29px;height:29px;border-radius:8px;display:grid;place-items:center;color:#fff}
-.ic svg{width:17px;height:17px}
+.ic{flex:none;width:26px;height:26px;display:grid;place-items:center;color:var(--fg)}
+.ic svg{width:21px;height:21px}
+.item.nav .val{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;max-width:45%}
+.item.nav .val svg{width:15px;height:15px;flex:none;color:var(--line-strong)}
+.back{display:flex;align-items:center;gap:2px;margin-left:-6px}
+.back svg{width:20px;height:20px;transform:rotate(180deg)}
+/* history: a month's summary under its heading */
+.msum{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px 12px;border-bottom:.5px solid var(--line)}
+.msum > div{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
+.msum .ml{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.msum b{font-size:18px;font-weight:800;line-height:1.25}
+.msum small{font-size:11px;color:var(--muted);font-weight:600}
 .item input[type="text"],.item input:not([type]),.item select,.item input[type="time"],.item input[type="date"]{background:transparent;border:0;text-align:right;font-size:17px;color:var(--muted);width:120px;padding:4px 0;font-family:var(--font-num)}
 .item input[type="date"]{color:var(--trend);width:auto}
 .item select{font-family:var(--font-ui);width:auto;direction:rtl}
@@ -449,7 +459,7 @@ const ICON = {
 const CHEV = ICON.chev, BKSP = ICON.bksp;
 // Down, up or sideways arrow for a change in weight.
 const arrowIcon = d => ICON.arrow.replace("<svg ", `<svg style="transform:rotate(${d == null || Math.abs(d) < 0.05 ? -90 : d > 0 ? 180 : 0}deg)" `);
-// Line icons for settings rows, shown white on a coloured square.
+// Line icons for settings rows.
 const sv = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const SET_ICON = {
   goal: ICON.flag,
@@ -469,8 +479,7 @@ const SET_ICON = {
   info: sv('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>'),
   tag: sv('<path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8z"/><circle cx="8.5" cy="8.5" r="1.3"/>')
 };
-const SET_COLOR = { goal:"var(--goal)", trend:"var(--trend)", health:"#d6606e", remind:"#c3902f", backup:"#557a9b", look:"#7b70a3", lock:"#5f6f66", about:"#8b918a" };
-const ico = (name, color) => `<span class="ic" style="background:${SET_COLOR[color]}">${SET_ICON[name]}</span>`;
+const ico = name => `<span class="ic">${SET_ICON[name]}</span>`;
 
 /* ---------- theme ---------- */
 function applyTheme(){
@@ -630,11 +639,12 @@ function showCelebration(isGoal, value){
 /* ---------- tabs, top bar ---------- */
 const TITLES = { progress:"Progress", history:"History", settings:"Settings" };
 let tab = "progress", lastTab = "progress";
+let setPage = null;  // the open settings page, or null for the list of pages
 try{ const t = localStorage.getItem(KEY + ":tab"); if (t === "history" || t === "logbook") tab = "history"; }catch(e){}
 let chartIntro = true;  // the chart draws itself in on launch, on a tab switch and on a range change
 function setTab(t){
   if (t === tab){ window.scrollTo({ top: 0, behavior: "smooth" }); return; }
-  if (t === "settings") lastTab = tab;
+  if (t === "settings"){ lastTab = tab; setPage = null; }
   else { try{ localStorage.setItem(KEY + ":tab", t); }catch(e){} }
   tab = t; haptic("selection"); chartIntro = true;
   syncTabbar(); window.scrollTo(0, 0); render(true);
@@ -655,9 +665,11 @@ window.addEventListener("scroll", () => topbar.classList.toggle("scrolled", wind
 function render(animate){
   closeSwipe();
   document.body.dataset.tab = tab;
-  $("#tbTitle").textContent = TITLES[tab];
+  const page = tab === "settings" && setPage ? SET_PAGES.find(p => p[0] === setPage) : null;
+  $("#tbTitle").textContent = page ? page[1] : TITLES[tab];
   const L = $("#tbLeft"), R = $("#tbRight"); L.innerHTML = ""; R.innerHTML = "";
-  if (tab === "settings"){ L.innerHTML = `<button class="link strong" id="tbDone">Done</button>`; $("#tbDone").onclick = () => setTab(lastTab); }
+  if (page){ L.innerHTML = `<button class="link back" id="tbBack">${CHEV}Settings</button>`; $("#tbBack").onclick = () => { setPage = null; haptic("selection"); window.scrollTo(0, 0); render(true); }; }
+  else if (tab === "settings"){ L.innerHTML = `<button class="link strong" id="tbDone">Done</button>`; $("#tbDone").onclick = () => setTab(lastTab); }
   else { R.innerHTML = `<button class="icon-btn" id="tbGear" aria-label="Settings">${ICON.gear}</button>`; $("#tbGear").onclick = () => setTab("settings"); }
   if (tab === "settings") renderSettings();
   else if (!S.entries.length) renderEmpty();
@@ -969,13 +981,28 @@ function renderHistory(){
   const rows = S.entries.map(e => { const i = vIdx.get(e.id); return i == null ? { ...e, trend: null, excluded: true } : valid[i]; });
   const byMonth = new Map(); rows.forEach(r => { const k = r.date.slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(r); });
   let html = `<p class="dateline">${S.entries.length} weigh-in${S.entries.length > 1 ? "s" : ""}</p>`;
+  // lowest counted weigh-in of each month, to compare a month with the one before
+  const lows = new Map(); valid.forEach(r => { const k = r.date.slice(0, 7), l = lows.get(k); if (!l || r.kg <= l.kg) lows.set(k, r); });
   [...byMonth.keys()].sort().reverse().forEach(k => {
     const [y, m] = k.split("-").map(Number);
     // trend change across the month: end of this month against the end of the previous one
     const inMonth = valid.filter(r => r.date.slice(0, 7) === k), before = valid.filter(r => r.date < k + "-01");
     const ch = inMonth.length ? inMonth[inMonth.length-1].trend - (before.length ? before[before.length-1].trend : inMonth[0].trend) : null;
     const chHtml = ch == null || (!before.length && inMonth.length < 2) ? "" : `<span class="num ${tone(ch)}">${arrow(ch)} ${Math.abs(toU(ch)).toFixed(1)} ${U()}</span>`;
-    html += `<section class="card month"><div class="month-h"><h3>${MONF[m-1]} ${y}</h3>${chHtml}</div>
+    // the month in numbers: its low weigh-in, the trend's weekly pace, and the low against last month's
+    let sum = "";
+    const low = lows.get(k);
+    if (low){
+      const startN = before.length ? before[before.length-1].n : inMonth[0].n, days = inMonth[inMonth.length-1].n - startN;
+      const perWk = ch != null && days >= 6 ? ch/days*7 : null;
+      const prevK = [...lows.keys()].filter(x => x < k).sort().pop(), prev = prevK ? lows.get(prevK) : null, vs = prev ? low.kg - prev.kg : null;
+      const chg = d => d == null ? "—" : `<span class="${tone(d)}">${arrow(d)} ${Math.abs(toU(d)).toFixed(1)}</span>`;
+      sum = `<div class="msum">
+        <div><span class="ml">Low weigh-in</span><b class="num">${fw(low.kg)}</b><small>${fmtDate(low.date)}</small></div>
+        <div><span class="ml">Trend</span><b class="num">${chg(perWk)}</b><small>${U()} per week</small></div>
+        <div><span class="ml">Low vs last month</span><b class="num">${chg(vs)}</b><small>${prev ? `${U()} from ${MON[parts(prev.date).m-1]}` : "First month"}</small></div></div>`;
+    }
+    html += `<section class="card month"><div class="month-h"><h3>${MONF[m-1]} ${y}</h3>${chHtml}</div>${sum}
       <div class="hhead hgrid"><span>Date</span><span>Recorded</span><span>Moving<br>average</span><span>Weekly<br>rate</span></div>`;
     byMonth.get(k).slice().reverse().forEach(r => {
       const p = parts(r.date);
@@ -1193,38 +1220,59 @@ function http(req){
 }
 
 /* ---------- settings ---------- */
+// Settings pages: [id, title, icon, shown in the browser too]
+const SET_PAGES = [["goal", "Weight goal", "goal", true], ["units", "Units & trend", "scale", true], ["health", "Apple Health", "heart", false],
+  ["remind", "Reminder", "bell", false], ["lock", "Face ID", "lock", false], ["look", "Appearance", "moon", true],
+  ["backup", "Backup & data", "folder", true], ["about", "About & updates", "info", false]];
 function renderSettings(){
   const s = S.settings, bk = backupInfo || {};
-  // a row label with its icon; ic is [icon name, colour group]
-  const lab = (ic, k, h) => `<span class="k wi">${ico(ic[0], ic[1])}<span>${k}${h ? `<span class="h">${h}</span>` : ""}</span></span>`;
+  // rows that aren't on the open page are missing, so their handlers attach to nothing
+  const none = { addEventListener(){} }, $ = sel => view.querySelector(sel) || none;
+  // a row label with its icon
+  const lab = (ic, k, h) => `<span class="k wi">${ico(ic[0])}<span>${k}${h ? `<span class="h">${h}</span>` : ""}</span></span>`;
   const tgl = (ic, id, on, k, h) => `<label class="item">${lab(ic, k, h)}<input type="checkbox" class="tg" id="${id}" ${on ? "checked" : ""}></label>`;
   const inp = (ic, id, k, val, ph, h) => `<label class="item">${lab(ic, k, h)}<input id="${id}" class="num" inputmode="decimal" value="${val}" placeholder="${ph}"></label>`;
-  let html = `<div class="group-t">Goal</div><div class="list">
-      ${inp(["goal", "goal"], "sg", "Goal weight", s.goal == null ? "" : toU(s.goal).toFixed(1), U())}
-      ${inp(["start", "goal"], "ss", "Starting weight", s.start == null ? "" : toU(s.start).toFixed(1), S.entries[0] ? fw(S.entries[0].kg) : U(), "Defaults to your first weigh-in")}
-      ${inp(["steps", "goal"], "sm", "Milestone every", s.step == null ? "" : toU(s.step).toFixed(1), U() === "lb" ? "5.0" : "2.0")}
-      ${inp(["calendar", "goal"], "sc", "Weekly commitment", s.commit == null ? "" : toU(s.commit).toFixed(2), `${U()}/wk`)}
-    </div>
-    <div class="group-t">Weight & trend</div><div class="list">
-      <label class="item">${lab(["scale", "trend"], "Units")}<select id="su"><option value="kg" ${s.unit === "kg" ? "selected" : ""}>Kilograms</option><option value="lb" ${s.unit === "lb" ? "selected" : ""}>Pounds</option></select></label>
-      <label class="item">${lab(["wave", "trend"], "Trend smoothing", "Heavier smoothing ignores daily swings more but reacts slower")}
-        <select id="sa"><option value="0.2" ${s.smooth == 0.2 ? "selected" : ""}>Light</option><option value="0.1" ${s.smooth == 0.1 ? "selected" : ""}>Standard</option><option value="0.05" ${s.smooth == 0.05 ? "selected" : ""}>Heavy</option></select></label>
-    </div>`;
-  if (NATIVE){
-    html += `<div class="group-t">Apple Health</div><div class="list">
-      ${tgl(["heart", "health"], "hr", s.healthRead, "Import weigh-ins", "Weight from your smart scale or other apps")}
-      ${tgl(["save", "health"], "hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
-      ${s.healthRead ? `<label class="item">${lab(["calendar", "health"], "Import from", "Older readings in Apple Health are ignored")}<input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}"></label>` : ""}
-      ${s.healthRead ? tgl(["bell", "health"], "hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
-      ${s.healthRead ? `<button class="item" id="hs">${lab(["refresh", "health"], "Check now")}<span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
-    </div>
-    <div class="group-t">Reminder</div><div class="list">
-      ${tgl(["bell", "remind"], "rm", s.remind, "Remind me to weigh in", "Skipped on days you've already weighed in")}
-      <label class="item">${lab(["clock", "remind"], "Time")}<input type="time" id="rt" value="${s.remindTime || "07:30"}" ${s.remind ? "" : "disabled"}></label>
-    </div>`;
+  const update = latestRelease && latestRelease.build > buildOf(window.__APP_VERSION__);
+  let html = "";
+  if (!setPage){
+    const val = { goal: s.goal == null ? "Not set" : `${fw(s.goal)} ${U()}`, units: s.unit === "kg" ? "Kilograms" : "Pounds",
+      health: s.healthRead ? "On" : "Off", remind: s.remind ? (s.remindTime || "07:30") : "Off", lock: s.lock ? "On" : "Off",
+      look: { auto: "Match iPhone", light: "Light", dark: "Dark" }[s.theme], backup: bk.folder ? esc(bk.folder) : "",
+      about: update ? `<span style="color:var(--trend)">Update available</span>` : "" };
+    html = `<div class="list" style="margin-top:6px">${SET_PAGES.filter(p => p[3] || NATIVE).map(([id, t, ic]) =>
+      `<button class="item nav" data-page="${id}">${lab([ic], t)}<span class="val">${val[id]}${CHEV}</span></button>`).join("")}</div>
+      <p class="footer">Trendline${window.__APP_VERSION__ ? " " + esc(window.__APP_VERSION__) : ""}</p>`;
   }
-  html += `<div class="group-t">Backup</div><div class="list">
-      ${NATIVE ? `<button class="item" id="bf">${lab(["folder", "backup"], "Backup folder", esc(folderText()))}<span class="val" style="color:var(--${bk.folder && !bk.folderError ? "trend" : "muted"})">${bk.folder ? esc(bk.folder) : "Choose"}</span></button>
+  else if (setPage === "goal") html = `<div class="list">
+      ${inp(["goal"], "sg", "Goal weight", s.goal == null ? "" : toU(s.goal).toFixed(1), U())}
+      ${inp(["start"], "ss", "Starting weight", s.start == null ? "" : toU(s.start).toFixed(1), S.entries[0] ? fw(S.entries[0].kg) : U(), "Defaults to your first weigh-in")}
+      ${inp(["steps"], "sm", "Milestone every", s.step == null ? "" : toU(s.step).toFixed(1), U() === "lb" ? "5.0" : "2.0")}
+      ${inp(["calendar"], "sc", "Weekly commitment", s.commit == null ? "" : toU(s.commit).toFixed(2), `${U()}/wk`)}
+    </div>
+    <p class="group-f">Milestones split the way to your goal into smaller steps. Your commitment is the weekly pace you aim for, used for a second goal date.</p>`;
+  else if (setPage === "units") html = `<div class="list">
+      <label class="item">${lab(["scale"], "Units")}<select id="su"><option value="kg" ${s.unit === "kg" ? "selected" : ""}>Kilograms</option><option value="lb" ${s.unit === "lb" ? "selected" : ""}>Pounds</option></select></label>
+      <label class="item">${lab(["wave"], "Trend smoothing", "Heavier smoothing ignores daily swings more but reacts slower")}
+        <select id="sa"><option value="0.2" ${s.smooth == 0.2 ? "selected" : ""}>Light</option><option value="0.1" ${s.smooth == 0.1 ? "selected" : ""}>Standard</option><option value="0.05" ${s.smooth == 0.05 ? "selected" : ""}>Heavy</option></select></label>
+    </div>
+    <p class="group-f">The trend is an exponentially smoothed moving average: each weigh-in moves it part of the way, so one heavy or light day barely shifts it.</p>`;
+  else if (setPage === "health") html = `<div class="list">
+      ${tgl(["heart"], "hr", s.healthRead, "Import weigh-ins", "Weight from your smart scale or other apps")}
+      ${tgl(["save"], "hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
+      ${s.healthRead ? `<label class="item">${lab(["calendar"], "Import from", "Older readings in Apple Health are ignored")}<input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}"></label>` : ""}
+      ${s.healthRead ? tgl(["bell"], "hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
+      ${s.healthRead ? `<button class="item" id="hs">${lab(["refresh"], "Check now")}<span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
+    </div>`;
+  else if (setPage === "remind") html = `<div class="list">
+      ${tgl(["bell"], "rm", s.remind, "Remind me to weigh in", "Skipped on days you've already weighed in")}
+      <label class="item">${lab(["clock"], "Time")}<input type="time" id="rt" value="${s.remindTime || "07:30"}" ${s.remind ? "" : "disabled"}></label>
+    </div>`;
+  else if (setPage === "lock") html = `<div class="list">${tgl(["lock"], "lk", s.lock, "Lock with Face ID", "Asks for Face ID or your passcode when you open the app")}</div>`;
+  else if (setPage === "look") html = `<div class="list">
+      <label class="item">${lab(["moon"], "Theme")}<select id="st"><option value="auto" ${s.theme === "auto" ? "selected" : ""}>Match iPhone</option><option value="light" ${s.theme === "light" ? "selected" : ""}>Light</option><option value="dark" ${s.theme === "dark" ? "selected" : ""}>Dark</option></select></label>
+    </div>`;
+  else if (setPage === "backup") html = `<div class="list">
+      ${NATIVE ? `<button class="item" id="bf">${lab(["folder"], "Backup folder", esc(folderText()))}<span class="val" style="color:var(--${bk.folder && !bk.folderError ? "trend" : "muted"})">${bk.folder ? esc(bk.folder) : "Choose"}</span></button>
       <button class="item action" id="bn">Back up now</button>` : ""}
       <button class="item action" id="bx">Export backup</button>
       <button class="item action" id="bc">Export spreadsheet (CSV)</button>
@@ -1232,18 +1280,14 @@ function renderSettings(){
     </div>
     <p class="group-f">${NATIVE ? esc(backupText()) + " Automatic backups are in the Files app: On My iPhone › Trendline › Backups." : "Your data stays on this device. Export a backup now and then."}</p>
     ${NATIVE && bk.folder ? `<div class="list"><button class="item action" id="bfr">Stop copying to ${esc(bk.folder)}</button></div>` : ""}
-    <div class="group-t">Appearance</div><div class="list">
-      <label class="item">${lab(["moon", "look"], "Theme")}<select id="st"><option value="auto" ${s.theme === "auto" ? "selected" : ""}>Match iPhone</option><option value="light" ${s.theme === "light" ? "selected" : ""}>Light</option><option value="dark" ${s.theme === "dark" ? "selected" : ""}>Dark</option></select></label>
-    </div>
-    ${NATIVE ? `<div class="group-t">Privacy</div><div class="list">${tgl(["lock", "lock"], "lk", s.lock, "Lock with Face ID", "Asks for Face ID or your passcode when you open the app")}</div>` : ""}
-    ${NATIVE ? `<div class="group-t">About</div><div class="list">
-      <div class="item">${lab(["info", "about"], "Version")}<span class="val">${esc(window.__APP_VERSION__ || "—")}</span></div>
-      ${bk.bundle ? `<div class="item">${lab(["tag", "about"], "Bundle ID")}<span class="val" style="font-size:13px">${esc(bk.bundle)}</span></div>` : ""}
-      ${latestRelease && latestRelease.build > buildOf(window.__APP_VERSION__) ? `<button class="item action" id="upOpen">Update to ${esc(latestRelease.name.replace(/\s*\(build \d+\)/i, ""))}</button>` : ""}
-      <button class="item action" id="upChk">Check for updates</button></div>` : ""}
-    <div class="list" style="margin-top:8px"><button class="item danger" id="bd">Erase all data</button></div>
-    <p class="footer">Trendline${window.__APP_VERSION__ ? " " + esc(window.__APP_VERSION__) : ""}</p>`;
+    <div class="list" style="margin-top:8px"><button class="item danger" id="bd">Erase all data</button></div>`;
+  else if (setPage === "about") html = `<div class="list">
+      <div class="item">${lab(["info"], "Version")}<span class="val">${esc(window.__APP_VERSION__ || "—")}</span></div>
+      ${bk.bundle ? `<div class="item">${lab(["tag"], "Bundle ID")}<span class="val" style="font-size:13px">${esc(bk.bundle)}</span></div>` : ""}
+      ${update ? `<button class="item action" id="upOpen">Update to ${esc(latestRelease.name.replace(/\s*\(build \d+\)/i, ""))}</button>` : ""}
+      <button class="item action" id="upChk">Check for updates</button></div>`;
   view.innerHTML = html;
+  view.querySelectorAll("[data-page]").forEach(b => b.onclick = () => { setPage = b.dataset.page; haptic("selection"); window.scrollTo(0, 0); render(true); });
 
   const num = (id, cb) => $(id).addEventListener("change", e => { const raw = e.target.value.trim().replace(",", "."), v = raw === "" ? null : parseFloat(raw); if (raw !== "" && (isNaN(v) || v <= 0)){ toast("Enter a number above zero"); return; } cb(v); save(); haptic("light"); toast("Saved"); });
   num("#sg", v => setGoal(v == null ? null : fromU(v)));
