@@ -62,12 +62,9 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
           cat > ios/release-notes.md <<NOTES
-          Version 2.0:
-          - A new, calmer Trendline that's about your weight only: Progress and History, with the add button between them
-          - Weigh in faster: the number starts at your last weight, and you can tap +/−, drag it sideways or type
-          - One clear prediction of the day you reach your goal, plus your weekly commitment if you set one
-          - Milestones on the chart and on the goal bar
-          - Food logging, AI, Apple Watch activity, energy balance, reports and body composition are gone, along with their data and saved API keys
+          Version 2.0.1:
+          - The weight chart fills its width when you have only a few days of weigh-ins, instead of squeezing them against the right edge
+          - The newest point on the chart is no longer cut in half
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK.
@@ -78,6 +75,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 2.0 (build ${{ github.run_number }})
+          name: Trendline 2.0.1 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa

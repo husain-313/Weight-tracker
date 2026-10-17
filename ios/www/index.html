@@ -701,7 +701,10 @@ function niceStep(range, target){ const raw = range/target, p = Math.pow(10, Mat
 function paintChart(c, W, H, allRows, R){
   const end = allRows[allRows.length-1].n;
   let rows = R ? allRows.filter(r => r.n > end - R) : allRows; if (!rows.length) rows = allRows.slice(-1);
-  const x0 = R ? end - R : rows[0].n, x1 = Math.max(end, x0 + 1);
+  // A history shorter than the range fills the chart (at least a week wide) instead of hugging the right edge;
+  // a little room after the last day keeps its dot whole.
+  const x0 = Math.min(R ? Math.max(end - R, allRows[0].n - 1) : rows[0].n, end - 6);
+  const x1 = end + Math.max(0.6, (end - x0)*0.02);
   const vals = rows.flatMap(r => [toU(r.kg), toU(r.trend)]); if (S.settings.goal != null && R === 0) vals.push(toU(S.settings.goal));
   let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1){ const m = (hi + lo)/2; lo = m - .5; hi = m + .5; }
   const st = niceStep(hi - lo, 4); lo = Math.floor(lo/st)*st; hi = Math.ceil(hi/st)*st;
@@ -716,7 +719,8 @@ function paintChart(c, W, H, allRows, R){
   }
   c.textAlign = "center"; c.textBaseline = "alphabetic";
   const span = x1 - x0;
-  if (span <= 45){ for (let n = Math.ceil(x0/7)*7 + 3; n <= x1; n += 7){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(`${p.d} ${MON[p.m-1]}`, X(n), H - 6); } }
+  if (span <= 10){ for (let n = Math.ceil(x0); n <= end; n++){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(WD[p.wd], X(n), H - 6); } }
+  else if (span <= 45){ for (let n = Math.ceil(x0/7)*7 + 3; n <= x1; n += 7){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(`${p.d} ${MON[p.m-1]}`, X(n), H - 6); } }
   else {
     const d0 = new Date(x0*DAY); let cur = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1));
     const every = span > 1500 ? 12 : span > 500 ? 3 : span > 200 ? 2 : 1;
