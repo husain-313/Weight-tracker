@@ -92,13 +92,11 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .good{color:var(--good)} .bad{color:var(--bad)} .flat{color:var(--muted)}
 
 /* hero */
-.hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:18px 0 6px}
-.hero .big{font-size:68px;font-weight:700;line-height:1;letter-spacing:-.035em}
-.hero .unit{font-size:22px;color:var(--muted);font-weight:600;margin-left:6px;letter-spacing:0;font-family:var(--font-ui)}
 .chg{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 12px;font-size:15px;font-weight:650;background:var(--surface-2)}
 .chg svg{width:15px;height:15px;flex:none}
 .chg.good{background:var(--good-soft)} .chg.bad{background:var(--bad-soft)}
-.hero .sub{font-size:14px;color:var(--muted)}
+.card-h .chg{font-size:13px;padding:4px 10px}
+.card-h .chg svg{width:13px;height:13px}
 
 /* recent stats: a small chart of the last days beside four stacked tiles whose colour says what the number is */
 .recent{display:grid;grid-template-columns:1fr 118px;gap:10px;align-items:stretch}
@@ -235,14 +233,10 @@ body[data-tab="settings"] nav.tabs{display:none}
 .sheet-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .sheet-h h2{margin:0;font-size:18px;font-weight:650}
 .wbig input{font-family:var(--font-num);font-size:44px;font-weight:700;text-align:center;padding:12px;background:transparent;border:0;width:100%;min-width:0;outline:none}
-.dial{display:flex;align-items:center;gap:10px;padding-top:6px}
-.dial-mid{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
-.dial-mid input{font-family:var(--font-num);font-size:58px;font-weight:700;letter-spacing:-.03em;text-align:center;padding:4px 0;background:transparent;border:0;width:100%;min-width:0;outline:none;touch-action:none;caret-color:var(--trend)}
-.dial-u{font-size:15px;font-weight:600;color:var(--muted);margin-top:-4px}
-.step{width:56px;height:56px;border-radius:50%;background:var(--surface-2);font-size:28px;font-weight:500;flex:none;color:var(--trend);display:grid;place-items:center}
-.step:active{background:var(--trend-soft)}
-.ruler{display:block;width:100%;height:58px;margin-top:-4px;touch-action:none;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent)}
+.wbox{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-radius:14px;border:1.5px solid var(--trend);background:var(--surface-2)}
+.wbox .k{font-size:17px;font-weight:600}
+.wbox input{font-family:var(--font-num);font-size:30px;font-weight:800;text-align:right;background:transparent;border:0;width:100%;min-width:0;outline:none;padding:0;caret-color:transparent}
+.wbox .u{font-size:16px;font-weight:600;color:var(--muted)}
 .err{color:var(--danger);font-size:14px;margin:0}
 .datebar{display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border-radius:14px;padding:4px}
 .dnav{width:44px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--trend)}
@@ -697,9 +691,7 @@ function renderEmpty(){
 /* ---------- progress ---------- */
 function renderProgress(){
   const rows = computeTrend();
-  const p = parts(todayStr());
-  let html = `<p class="dateline">${WDF[p.wd]} ${p.d} ${MONF[p.m-1]}</p>`;
-  if (rows.length) html += heroCard(rows);
+  let html = "";
   const odd = S.entries.filter(e => e.outlier && !e.keep && !e.ignored);
   for (const e of odd.slice(-3)){
     const before = rows.filter(r => r.date < e.date), t = before.length ? before[before.length-1].trend : null;
@@ -707,38 +699,12 @@ function renderProgress(){
       <p class="note"><b style="color:var(--fg)">${fmtDate(e.date)}: ${fw(e.kg)} ${U()}</b>${t != null ? `, ${fd(e.kg - t)} ${U()} from your trend of ${fw(t)}` : ""}. Someone else on the scale, clothes or a big meal can cause this. It isn't counted until you decide.</p>
       <div class="btns"><button class="btn" data-odd-keep="${esc(e.id)}">It's right, count it</button><button class="btn danger" data-odd-ignore="${esc(e.id)}">Ignore it</button></div></section>`;
   }
-  if (rows.length) html += chartCard() + statsCard(rows) + goalCard(rows) + predictCard(rows);
+  if (rows.length) html += statsCard(rows) + goalCard(rows) + predictCard(rows) + chartCard();
   view.innerHTML = html;
   bindProgress(rows);
-  if (rows.length){ const last = rows[rows.length-1], wk = changeOver(rows, 7); countHero(last.trend, wk == null ? null : last.trend - wk); }
 }
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-// The trend weight counts to its new value: from what it showed last time, or on launch from a week ago.
-let heroShown = null;
-function countHero(target, from){
-  const el = $("#heroNum"), start = heroShown ?? from; heroShown = target;
-  if (!el || start == null || fw(start) === fw(target) || calm()) return;
-  const t0 = performance.now(), dur = 700;
-  el.textContent = fw(start);
-  const step = now => {
-    if (!el.isConnected) return;
-    const p = Math.min(1, (now - t0)/dur), e = 1 - Math.pow(1 - p, 3);
-    el.textContent = fw(start + (target - start)*e);
-    if (p < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
 let goalShown = 0;  // share of the goal the bar last showed, so it grows from there
-function heroCard(rows){
-  const last = rows[rows.length-1], wk = changeOver(rows, 7), ago = dnum(todayStr()) - last.n;
-  const chg = wk == null ? `<span class="chg flat">Building your trend</span>` : `<span class="chg ${tone(wk)} num">${arrowIcon(wk)}${Math.abs(toU(wk)).toFixed(1)} ${U()} this week</span>`;
-  return `<section class="hero">
-    <div class="lbl">Trend weight</div>
-    <div><span class="big num" id="heroNum">${fw(last.trend)}</span><span class="unit">${U()}</span></div>
-    ${chg}
-    <div class="sub">Last weigh-in <b class="num" style="color:var(--fg)">${fw(last.kg)}</b> · ${ago <= 0 ? "today" : ago === 1 ? "yesterday" : ago + " days ago"}</div>
-  </section>`;
-}
 const agoText = n => { const d = dnum(todayStr()) - n; return d <= 0 ? "Today" : d === 1 ? "Yesterday" : `${d} days ago`; };
 const RECENT = 10;  // days in the recent stats card
 const recentRows = rows => { const last = rows[rows.length-1]; return rows.filter(r => r.n > last.n - RECENT); };
@@ -749,9 +715,10 @@ function statsCard(rows){
   const last = rows[rows.length-1], recent = recentRows(rows);
   let hi = recent[0], lo = recent[0];
   for (const r of recent){ if (r.kg >= hi.kg) hi = r; if (r.kg <= lo.kg) lo = r; }
-  const gain = goalDir() > 0;
+  const gain = goalDir() > 0, wk = changeOver(rows, 7);
+  const chg = wk == null ? "" : `<span class="chg ${tone(wk)} num">${arrowIcon(wk)}${Math.abs(toU(wk)).toFixed(1)} ${U()} this week</span>`;
   const tile = (cls, label, kg, sub) => `<div class="tile ${cls}"><span class="tl">${label}</span><span class="tv num">${fw(kg)}</span>${sub ? `<span class="ts">${sub}</span>` : ""}</div>`;
-  return `<section class="card"><div class="card-h"><h2>Recent stats</h2></div><div class="recent">
+  return `<section class="card"><div class="card-h"><h2>Recent stats</h2>${chg}</div><div class="recent">
     <canvas id="mini" aria-label="Weigh-ins over the last ${RECENT} days"></canvas>
     <div class="tiles">${tile(gain ? "lo" : "hi", "High", hi.kg, agoText(hi.n))}${tile("la", "Latest", last.kg, "")}
     ${tile("tr", "Trend", last.trend, "")}${tile(gain ? "hi" : "lo", "Low", lo.kg, agoText(lo.n))}</div></div></section>`;
@@ -780,7 +747,7 @@ function paintMini(cv, rows){
   c.font = `700 11px ${NUMFONT}`; c.textAlign = "center"; c.fillStyle = muted;
   for (let n = x0; n <= end; n++) c.fillText(WD[parts(fromDnum(n)).wd].slice(0, 1), X(n), H - 4);
 }
-const RANGES = [[30,"1M"],[90,"3M"],[180,"6M"],[365,"1Y"],[0,"All"]];
+const RANGES = [[7,"7 Days"],[30,"30 Days"],[90,"90 Days"],[365,"365"],[0,"All"]];
 function chartCard(){
   const R = S.settings.chartRange;
   return `<section class="card chart-card"><div class="card-h"><h2>Weight chart</h2></div>
@@ -1080,7 +1047,7 @@ function openSheet(inner){
   el.addEventListener("click", ev => { if (ev.target === el) closeSheet(); });
   sh.querySelectorAll("[data-x]").forEach(b => b.onclick = closeSheet);
   let y0 = null, dy = 0;
-  sh.addEventListener("touchstart", ev => { if (sh.scrollTop > 0 || (ev.target.closest("input,select,textarea,button,.ruler") && !ev.target.closest(".grab"))){ y0 = null; return; } y0 = ev.touches[0].clientY; dy = 0; sh.style.transition = "none"; }, { passive:true });
+  sh.addEventListener("touchstart", ev => { if (sh.scrollTop > 0 || (ev.target.closest("input,select,textarea,button") && !ev.target.closest(".grab"))){ y0 = null; return; } y0 = ev.touches[0].clientY; dy = 0; sh.style.transition = "none"; }, { passive:true });
   sh.addEventListener("touchmove", ev => { if (y0 == null) return; dy = Math.max(0, ev.touches[0].clientY - y0); sh.style.transform = `translateY(${dy}px)`; }, { passive:true });
   sh.addEventListener("touchend", () => { if (y0 == null) return; y0 = null; sh.style.transition = ""; if (dy > 110) closeSheet(); else sh.style.transform = ""; });
   return sh;
@@ -1101,12 +1068,7 @@ function openEntry(entry){
     <div class="datebar"><button type="button" class="dnav" id="dprev" aria-label="Previous day">${CHEV.replace("<svg ", '<svg style="transform:rotate(180deg)" ')}</button>
       <label class="dlab"><span id="dtx"></span><input type="date" id="ed" value="${entry ? entry.date : todayStr()}" max="${todayStr()}" aria-label="Date"></label>
       <button type="button" class="dnav" id="dnext" aria-label="Next day">${CHEV}</button></div>
-    <div class="dial">
-      <button type="button" class="step" id="em" aria-label="Decrease by 0.1">−</button>
-      <div class="dial-mid"><input id="ew" inputmode="none" readonly autocomplete="off" value="${startVal.toFixed(1)}" aria-label="Weight in ${U()}"><span class="dial-u">${U()}</span></div>
-      <button type="button" class="step" id="ep" aria-label="Increase by 0.1">+</button>
-    </div>
-    <canvas class="ruler" id="er" aria-hidden="true"></canvas>
+    <label class="wbox"><span class="k">Weight</span><input id="ew" inputmode="none" readonly autocomplete="off" value="${startVal.toFixed(1)}" aria-label="Weight in ${U()}"><span class="u">${U()}</span></label>
     <div class="list">
       <label class="item"><span class="k">Note</span><input id="en" maxlength="140" value="${esc(entry?.note || "")}" placeholder="Optional" style="width:60%"></label>
     </div>
@@ -1115,33 +1077,14 @@ function openEntry(entry){
     <div class="pad" id="pad">${["1","2","3","4","5","6","7","8","9",".","0","del"].map(k => `<button type="button" data-k="${k}" aria-label="${k === "del" ? "Delete digit" : k}">${k === "del" ? BKSP : k}</button>`).join("")}</div>`);
   const w = sh.querySelector("#ew");
   const read = () => parseFloat(w.value.replace(",", "."));
-  const clampU = v => Math.min(toU(400), Math.max(toU(20), v));
-  // Ruler under the number: a tick every 0.1 (14px apart, the same as one drag step), taller at .5 and whole numbers.
-  const ruler = sh.querySelector("#er"), PX = 14;
-  const drawRuler = pos => {
-    const dpr = devicePixelRatio || 1, W = ruler.clientWidth, H = ruler.clientHeight;
-    if (!W || isNaN(pos)) return;
-    if (ruler.width !== Math.round(W*dpr)){ ruler.width = Math.round(W*dpr); ruler.height = Math.round(H*dpr); }
-    const c = ruler.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-    const mid = W/2, at = pos*10, span = Math.ceil(mid/PX) + 1;
-    c.font = `600 12px ${NUMFONT}`; c.textAlign = "center"; c.textBaseline = "alphabetic";
-    for (let k = Math.floor(at) - span; k <= Math.ceil(at) + span; k++){
-      const x = Math.round(mid + (k - at)*PX) + .5, whole = k % 10 === 0, half = k % 5 === 0;
-      c.strokeStyle = css(whole ? "--muted" : "--line-strong"); c.lineWidth = whole ? 1.5 : 1;
-      c.beginPath(); c.moveTo(x, 8); c.lineTo(x, 8 + (whole ? 22 : half ? 15 : 9)); c.stroke();
-      if (whole){ c.fillStyle = css("--muted"); c.fillText(String(k/10), x, H - 6); }
-    }
-    c.strokeStyle = css("--trend"); c.lineWidth = 3; c.lineCap = "round"; c.beginPath(); c.moveTo(mid, 4); c.lineTo(mid, 36); c.stroke();
-  };
   // Typing on the pad replaces the number on the first key, then adds digits (one decimal at most).
   let fresh = true;
-  const setVal = v => { w.value = (Math.round(clampU(v)*10)/10).toFixed(1); fresh = true; drawRuler(read()); };
   sh.querySelectorAll("#pad button").forEach(b => b.onclick = () => {
     const k = b.dataset.k; let v = fresh ? "" : w.value; fresh = false;
     if (k === "del") v = v.slice(0, -1);
     else if (k === "."){ if (!v.includes(".")) v = (v || "0") + "."; }
     else if (!(v.includes(".") && v.split(".")[1].length >= 1) && v.replace(".", "").length < 4) v = (v === "0" ? "" : v) + k;
-    w.value = v; haptic("selection"); drawRuler(isNaN(read()) ? startVal : read());
+    w.value = v; haptic("selection");
   });
   // Date: arrows step a day, tapping the date opens the picker.
   const ed = sh.querySelector("#ed");
@@ -1154,31 +1097,6 @@ function openEntry(entry){
   sh.querySelector("#dprev").onclick = () => stepDay(-1); sh.querySelector("#dnext").onclick = () => stepDay(1);
   ed.addEventListener("change", () => { if (!/^\d{4}-\d{2}-\d{2}$/.test(ed.value) || ed.value > todayStr()) ed.value = todayStr(); showDate(); });
   showDate();
-  drawRuler(read());
-  w.addEventListener("input", () => drawRuler(read()));
-  // Dragging the ruler moves it under the needle like a real one: drag left for a higher number.
-  let rd = null;
-  ruler.addEventListener("touchstart", ev => { fresh = true; rd = { x: ev.touches[0].clientX, base: isNaN(read()) ? startVal : read(), last: null }; w.blur(); }, { passive:true });
-  ruler.addEventListener("touchmove", ev => {
-    if (!rd) return; ev.preventDefault();
-    const pos = clampU(rd.base - (ev.touches[0].clientX - rd.x)/PX*0.1), v = Math.round(pos*10)/10;
-    if (v !== rd.last){ rd.last = v; w.value = v.toFixed(1); haptic("selection"); }
-    drawRuler(pos);
-  }, { passive:false });
-  ruler.addEventListener("touchend", () => { if (rd){ rd = null; drawRuler(read()); } });
-  const bump = d => { const v = read(); if (!isNaN(v)){ setVal(v + d); haptic("selection"); } };
-  sh.querySelector("#em").onclick = () => bump(-0.1); sh.querySelector("#ep").onclick = () => bump(0.1);
-  let drag = null;
-  w.addEventListener("touchstart", ev => { drag = { x: ev.touches[0].clientX, y: ev.touches[0].clientY, base: isNaN(read()) ? startVal : read(), steps: 0, on: false }; }, { passive:true });
-  w.addEventListener("touchmove", ev => {
-    if (!drag) return;
-    const dx = ev.touches[0].clientX - drag.x, dy = ev.touches[0].clientY - drag.y;
-    if (!drag.on){ if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)){ drag.on = true; w.blur(); } else if (Math.abs(dy) > 8){ drag = null; return; } else return; }
-    ev.preventDefault();
-    const steps = Math.round(dx/14);
-    if (steps !== drag.steps){ drag.steps = steps; setVal(drag.base + steps*0.1); haptic("selection"); }
-  }, { passive:false });
-  w.addEventListener("touchend", ev => { if (drag && drag.on) ev.preventDefault(); drag = null; });
   if (entry) sh.querySelector("#edel").onclick = () => { closeSheet(); deleteEntry(entry); };
   const submit = () => {
     const v = read(), date = sh.querySelector("#ed").value, note = sh.querySelector("#en").value.trim(), err = sh.querySelector("#ee");
@@ -1201,7 +1119,6 @@ function openEntry(entry){
     scheduleReminder(); checkCelebrate(false);
   };
   sh.querySelector("#es").onclick = submit; sh.querySelector("#es2").onclick = submit;
-  w.addEventListener("keydown", ev => { if (ev.key === "Enter"){ ev.preventDefault(); w.blur(); } });
 }
 function numberSheet({ title, intro, label, value, placeholder, onSave, onClear }){
   const sh = openSheet(`<div class="sheet-h"><button class="link" data-x>Cancel</button><h2>${title}</h2><span style="width:52px"></span></div>

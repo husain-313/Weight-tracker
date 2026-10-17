@@ -62,13 +62,10 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
           cat > ios/release-notes.md <<NOTES
-          Version 2.3:
-          - A calmer charcoal look: rounded type, blue for the trend, and the page title in the top bar
-          - Recent stats: a small chart of the last 10 days beside the high, latest, trend and low
-          - Weight chart: the year and months along the top, shaded columns, and a thin line from the trend to each weigh-in
-          - History: clearer columns (Recorded, Moving average, Weekly rate) with solid coloured weekly rates
-          - If your goal is to gain weight, the red and green in the chart and stats now swap to match
-          - Weigh-in sheet: the number pad stays in view, with Delete beside Save when editing
+          Version 2.4:
+          - Progress opens on Recent stats, with this week's change beside the heading; the weight chart moves to the bottom
+          - Chart ranges: 7 Days, 30 Days, 90 Days, 365 and All
+          - A simpler weigh-in sheet: a plain weight field above the number pad
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK.
@@ -79,6 +76,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 2.3 (build ${{ github.run_number }})
+          name: Trendline 2.4 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa
