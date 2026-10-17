@@ -8,40 +8,46 @@
 <style>
 /* Layout: one calm column. Fixed top bar that fades in on scroll, a floating tab bar with a separate add button,
    settings as its own page, bottom sheets for editing.
-   Palette "night slate": blue for the trend, amber for the goal, and colours that mean something:
-   green for moving toward your goal, red for moving away. */
+   Palette and type follow Happy Scale's calm charcoal look: rounded type, blue for the trend, amber for the goal,
+   and colours that mean something: green for moving toward your goal, red for moving away. */
 :root{
-  --bg:#f2f4f8; --surface:#ffffff; --surface-2:#e9ecf2; --sheet:#ffffff; --bar:rgba(242,244,248,.86);
-  --line:#e0e4ec; --line-strong:#c7cdd8; --fg:#121722; --muted:#677084;
-  --trend:#2b7de9; --trend-ink:#ffffff; --trend-soft:rgba(43,125,233,.12);
+  --bg:#f2f2f7; --surface:#ffffff; --surface-2:#e9e9ef; --sheet:#ffffff; --bar:rgba(242,242,247,.86);
+  --line:#e3e3e9; --line-strong:#c8c8cf; --fg:#1c1c1e; --muted:#6e6e76;
+  --trend:#1a7ff0; --trend-ink:#ffffff; --trend-soft:rgba(26,127,240,.12);
   --goal:#e0921f; --goal-soft:rgba(224,146,31,.15);
-  --good:#159a62; --good-soft:rgba(21,154,98,.13); --bad:#dc4646; --bad-soft:rgba(220,70,70,.12);
-  --dot:#a9b0bd; --danger:#dc4646; --danger-soft:rgba(220,70,70,.12);
-  --card-shadow:0 1px 2px rgba(18,23,34,.04),0 8px 24px rgba(18,23,34,.06); --notch-on:rgba(255,255,255,.7);
-  --font-ui:-apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  --good:#1f9d55; --good-soft:rgba(31,157,85,.13); --bad:#e0393e; --bad-soft:rgba(224,57,62,.12);
+  --good-solid:#22a05a; --bad-solid:#e0434a; --solid-ink:#ffffff;
+  --t-hi:#fde4e5; --t-hi-l:#c4353b; --t-la:#ececf1; --t-la-l:#6e6e76; --t-tr:#dcebff; --t-tr-l:#1a6fd6; --t-lo:#dcf3e5; --t-lo-l:#1b8a4b;
+  --dot:#a7a7b0; --danger:#e0393e; --danger-soft:rgba(224,57,62,.12); --band:rgba(0,0,0,.025);
+  --card-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04); --notch-on:rgba(255,255,255,.7);
+  --font-ui:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
   --font-num:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0e1118; --surface:#191d28; --surface-2:#242a37; --sheet:#1b2030; --bar:rgba(14,17,24,.86);
-    --line:#2a3040; --line-strong:#3f4759; --fg:#eef1f7; --muted:#8f97aa;
-    --trend:#4b9dff; --trend-ink:#06101f; --trend-soft:rgba(75,157,255,.16);
-    --goal:#f4b04a; --goal-soft:rgba(244,176,74,.16);
-    --good:#36c98d; --good-soft:rgba(54,201,141,.17); --bad:#ff6767; --bad-soft:rgba(255,103,103,.17);
-    --dot:#4d5568; --danger:#ff6767; --danger-soft:rgba(255,103,103,.15);
-    --card-shadow:inset 0 0 0 .5px rgba(255,255,255,.07); --notch-on:rgba(14,17,24,.35);
+    --bg:#121116; --surface:#1f1e24; --surface-2:#2b2a31; --sheet:#1f1e24; --bar:rgba(18,17,22,.86);
+    --line:#302f36; --line-strong:#47464e; --fg:#ffffff; --muted:#8e8d96;
+    --trend:#2f8fff; --trend-ink:#ffffff; --trend-soft:rgba(47,143,255,.16);
+    --goal:#f2a93b; --goal-soft:rgba(242,169,59,.16);
+    --good:#34c46e; --good-soft:rgba(52,196,110,.16); --bad:#ef5257; --bad-soft:rgba(239,82,87,.16);
+    --good-solid:#1e6a42; --bad-solid:#8a2e35; --solid-ink:#ffffff;
+    --t-hi:#6c2a31; --t-hi-l:#ff9ea4; --t-la:#35343b; --t-la-l:#a9a8b1; --t-tr:#1b4f84; --t-tr-l:#8ec5ff; --t-lo:#1d5838; --t-lo-l:#80e2a8;
+    --dot:#5a5962; --danger:#ef5257; --danger-soft:rgba(239,82,87,.15); --band:rgba(255,255,255,.025);
+    --card-shadow:none; --notch-on:rgba(18,17,22,.35);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0e1118; --surface:#191d28; --surface-2:#242a37; --sheet:#1b2030; --bar:rgba(14,17,24,.86);
-  --line:#2a3040; --line-strong:#3f4759; --fg:#eef1f7; --muted:#8f97aa;
-  --trend:#4b9dff; --trend-ink:#06101f; --trend-soft:rgba(75,157,255,.16);
-  --goal:#f4b04a; --goal-soft:rgba(244,176,74,.16);
-  --good:#36c98d; --good-soft:rgba(54,201,141,.17); --bad:#ff6767; --bad-soft:rgba(255,103,103,.17);
-  --dot:#4d5568; --danger:#ff6767; --danger-soft:rgba(255,103,103,.15);
-  --card-shadow:inset 0 0 0 .5px rgba(255,255,255,.07); --notch-on:rgba(14,17,24,.35);
+  --bg:#121116; --surface:#1f1e24; --surface-2:#2b2a31; --sheet:#1f1e24; --bar:rgba(18,17,22,.86);
+  --line:#302f36; --line-strong:#47464e; --fg:#ffffff; --muted:#8e8d96;
+  --trend:#2f8fff; --trend-ink:#ffffff; --trend-soft:rgba(47,143,255,.16);
+  --goal:#f2a93b; --goal-soft:rgba(242,169,59,.16);
+  --good:#34c46e; --good-soft:rgba(52,196,110,.16); --bad:#ef5257; --bad-soft:rgba(239,82,87,.16);
+  --good-solid:#1e6a42; --bad-solid:#8a2e35; --solid-ink:#ffffff;
+  --t-hi:#6c2a31; --t-hi-l:#ff9ea4; --t-la:#35343b; --t-la-l:#a9a8b1; --t-tr:#1b4f84; --t-tr-l:#8ec5ff; --t-lo:#1d5838; --t-lo-l:#80e2a8;
+  --dot:#5a5962; --danger:#ef5257; --danger-soft:rgba(239,82,87,.15); --band:rgba(255,255,255,.025);
+  --card-shadow:none; --notch-on:rgba(18,17,22,.35);
   color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -59,8 +65,7 @@ svg{display:block}
 .topbar{position:fixed;top:0;left:0;right:0;z-index:20;padding-top:env(safe-area-inset-top,0px);border-bottom:.5px solid transparent;transition:background .2s,border-color .2s}
 .topbar.scrolled{background:var(--bar);-webkit-backdrop-filter:saturate(160%) blur(20px);backdrop-filter:saturate(160%) blur(20px);border-bottom-color:var(--line)}
 .tb-inner{height:44px;display:flex;align-items:center;justify-content:center;position:relative;max-width:640px;margin:0 auto}
-.tb-title{font-weight:600;font-size:17px;opacity:0;transition:opacity .2s}
-.scrolled .tb-title{opacity:1}
+.tb-title{font-weight:700;font-size:17px}
 .tb-left{position:absolute;left:16px;top:0;height:44px;display:flex;align-items:center}
 .tb-right{position:absolute;right:16px;top:4px;display:flex;gap:8px}
 .icon-btn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--muted)}
@@ -75,9 +80,9 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .dateline{margin:2px 0 -6px;font-size:15px;font-weight:500;color:var(--muted)}
 
 /* cards */
-.card{background:var(--surface);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:var(--card-shadow)}
+.card{background:var(--surface);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:var(--card-shadow)}
 .card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px}
-.card-h h2{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
+.card-h h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em}
 .mini-btn{width:32px;height:32px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted)}
 .mini-btn svg{width:16px;height:16px}
 .link{color:var(--trend);font-weight:600;font-size:16px}
@@ -95,22 +100,25 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .chg.good{background:var(--good-soft)} .chg.bad{background:var(--bad-soft)}
 .hero .sub{font-size:14px;color:var(--muted)}
 
-/* recent stats: four tiles whose colour says what the number is */
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.tile{border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0;background:color-mix(in srgb,var(--tc) 18%,var(--surface))}
-.tile .tl{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tc)}
-.tile .tv{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-.tile .tv small{font-size:14px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}
-.tile .ts{font-size:12px;color:var(--muted);font-weight:500}
-.tile.hi{--tc:var(--bad)} .tile.lo{--tc:var(--good)} .tile.tr{--tc:var(--trend)} .tile.la{--tc:var(--muted)}
+/* recent stats: a small chart of the last days beside four stacked tiles whose colour says what the number is */
+.recent{display:grid;grid-template-columns:1fr 118px;gap:10px;align-items:stretch}
+.recent canvas{display:block;width:100%;height:100%;min-height:200px}
+.tiles{display:flex;flex-direction:column;gap:6px}
+.tile{flex:1;border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;justify-content:center;min-width:0;background:var(--tb)}
+.tile .tl{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--tl)}
+.tile .tv{font-size:20px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.tile .ts{font-size:11px;color:var(--tl);font-weight:700;opacity:.85}
+.tile.hi{--tb:var(--t-hi);--tl:var(--t-hi-l)} .tile.lo{--tb:var(--t-lo);--tl:var(--t-lo-l)}
+.tile.tr{--tb:var(--t-tr);--tl:var(--t-tr-l)} .tile.la{--tb:var(--t-la);--tl:var(--t-la-l)}
 
 /* chart */
-.chart-card{padding:14px 12px 12px}
-.seg{display:flex;background:var(--surface-2);border-radius:10px;padding:2px;gap:2px}
-.seg button{flex:1;padding:7px 4px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);text-align:center}
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.chart-card{padding:14px 12px 10px;gap:6px}
+.chart-card .card-h{padding:0 4px}
+.seg{display:flex;gap:2px}
+.seg button{flex:1;padding:6px 2px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted);text-align:center}
+.seg button[aria-pressed="true"]{color:var(--fg);font-weight:800;background:var(--surface-2)}
 .chart-wrap{position:relative}
-.chart-wrap canvas{display:block;width:100%;height:250px;touch-action:pan-y}
+.chart-wrap canvas{display:block;width:100%;height:290px;touch-action:pan-y}
 .tip{position:absolute;top:0;pointer-events:none;background:var(--sheet);border:.5px solid var(--line);border-radius:10px;padding:6px 9px;font-size:12px;white-space:nowrap;transform:translateX(-50%);box-shadow:0 4px 14px rgba(0,0,0,.12);transition:left .12s ease-out}
 
 /* goal: thick bar, milestones as notches inside it */
@@ -136,15 +144,15 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .month{padding:0 0 4px;gap:0;overflow:clip}
 .month-h{position:sticky;top:calc(env(safe-area-inset-top,0px) + 44px);z-index:5;display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px 10px;
   background:color-mix(in srgb,var(--surface) 84%,transparent);-webkit-backdrop-filter:saturate(160%) blur(18px);backdrop-filter:saturate(160%) blur(18px);border-bottom:.5px solid var(--line)}
-.month-h h3{margin:0;font-size:19px;font-weight:650}
+.month-h h3{margin:0;font-size:18px;font-weight:800}
 .month-h span{font-size:14px;font-weight:600}
-.hgrid{display:grid;grid-template-columns:46px 1fr 64px 76px;align-items:center;gap:10px}
-.hhead{padding:8px 16px 6px;font-size:11px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:.5px solid var(--line)}
-.hhead .c{text-align:right}
-.started{margin:8px 12px 10px;padding:8px;border-radius:12px;background:var(--trend);color:var(--trend-ink);text-align:center;font-weight:700;font-size:15px}
-.lrow .c{text-align:right}
-.dfp{display:inline-flex;align-items:center;justify-content:center;gap:2px;min-width:60px;padding:4px 8px;border-radius:9px;font-size:14px;font-weight:700;background:var(--surface-2);color:var(--muted)}
-.dfp.good{background:var(--good-soft);color:var(--good)} .dfp.bad{background:var(--bad-soft);color:var(--bad)}
+.hgrid{display:grid;grid-template-columns:44px 1fr 1fr 74px;align-items:center;gap:8px}
+.hhead{padding:8px 16px 6px;font-size:12px;font-weight:700;line-height:1.2;color:var(--muted);text-align:center;align-items:end;border-bottom:.5px solid var(--line)}
+.hhead span:first-child{text-align:left}
+.started{margin:8px 12px 10px;padding:7px;border-radius:10px;background:var(--trend);color:var(--trend-ink);text-align:center;font-weight:700;font-size:15px}
+.lrow .c{text-align:center}
+.dfp{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:62px;padding:5px 8px;border-radius:8px;font-size:15px;font-weight:800;background:var(--surface-2);color:var(--muted)}
+.dfp.good{background:var(--good-solid);color:var(--solid-ink)} .dfp.bad{background:var(--bad-solid);color:var(--solid-ink)}
 .hbadge{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;background:var(--goal-soft);color:var(--goal);flex:none}
 .hbadge svg{width:11px;height:11px}
 .swipe{position:relative;overflow:hidden;border-bottom:.5px solid var(--line)}
@@ -153,9 +161,10 @@ h1.large small{font-size:15px;font-weight:500;color:var(--muted);letter-spacing:
 .lrow{position:relative;width:100%;padding:11px 16px;background:var(--surface);transition:transform .22s ease;touch-action:pan-y}
 .lrow.dragging{transition:none}
 .lrow .d{display:flex;flex-direction:column;line-height:1.1}
-.lrow .d b{font-size:18px;font-weight:650} .lrow .d small{font-size:11px;color:var(--muted);font-weight:500}
-.lrow .w{font-size:17px;font-weight:600;display:flex;align-items:center;gap:6px}
-.lrow .t{font-size:16px;color:var(--trend);font-weight:600}
+.lrow .d{align-items:center;color:var(--muted)}
+.lrow .d b{font-size:17px;font-weight:700} .lrow .d small{font-size:12px;font-weight:600}
+.lrow .w{font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px}
+.lrow .t{font-size:18px;font-weight:700}
 .lrow .memo{grid-column:1/-1;font-size:13px;color:var(--muted);text-align:left;margin-top:-2px}
 .lrow.out .w{color:var(--muted);text-decoration:line-through}
 
@@ -241,7 +250,7 @@ body[data-tab="settings"] nav.tabs{display:none}
 .dnav:disabled{color:var(--line-strong)}
 .dlab{position:relative;flex:1;text-align:center;font-weight:650;font-size:17px}
 .dlab input{position:absolute;inset:0;opacity:0;width:100%;height:100%}
-.pad{display:grid;grid-template-columns:repeat(3,1fr);margin:0 -16px -4px;border-top:.5px solid var(--line)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);margin:0 -16px -4px;border-top:.5px solid var(--line);position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom,0px));background:var(--sheet);padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));margin-bottom:calc(-22px - env(safe-area-inset-bottom,0px))}
 .pad button{height:54px;font-family:var(--font-num);font-size:27px;font-weight:600;text-align:center;border-right:.5px solid var(--line);border-bottom:.5px solid var(--line);display:grid;place-items:center}
 .pad button:nth-child(3n){border-right:0}
 .pad button:nth-last-child(-n+3){border-bottom:0}
@@ -666,7 +675,7 @@ function render(animate){
 }
 
 function renderEmpty(){
-  view.innerHTML = `<h1 class="large">${TITLES[tab]}</h1><section class="card empty">
+  view.innerHTML = `<section class="card empty">
     <div class="ring">${ICON.scale}</div>
     <h2>Start your trend</h2>
     <p>Weigh in each morning. Trendline smooths out the daily ups and downs and shows where you're really heading.</p>
@@ -731,20 +740,50 @@ function heroCard(rows){
   </section>`;
 }
 const agoText = n => { const d = dnum(todayStr()) - n; return d <= 0 ? "Today" : d === 1 ? "Yesterday" : `${d} days ago`; };
-// High, latest, trend and low over the last 30 days, each on a tile whose colour says what it is.
+const RECENT = 10;  // days in the recent stats card
+const recentRows = rows => { const last = rows[rows.length-1]; return rows.filter(r => r.n > last.n - RECENT); };
+// Colours for "above" and "below" follow the goal: above the trend is red when you're losing, green when you're gaining.
+const upDown = () => goalDir() > 0 ? [css("--good"), css("--bad")] : [css("--bad"), css("--good")];
+// High, latest, trend and low over the last days, stacked beside a small chart of those days.
 function statsCard(rows){
-  const last = rows[rows.length-1], recent = rows.filter(r => r.n > last.n - 30);
+  const last = rows[rows.length-1], recent = recentRows(rows);
   let hi = recent[0], lo = recent[0];
   for (const r of recent){ if (r.kg >= hi.kg) hi = r; if (r.kg <= lo.kg) lo = r; }
-  const tile = (cls, label, kg, sub) => `<div class="tile ${cls}"><span class="tl">${label}</span><span class="tv num">${fw(kg)}<small>${U()}</small></span><span class="ts">${sub}</span></div>`;
-  return `<section class="card"><div class="card-h"><h2>Last 30 days</h2></div><div class="tiles">
-    ${tile("hi", "High", hi.kg, agoText(hi.n))}${tile("la", "Latest", last.kg, agoText(last.n))}
-    ${tile("tr", "Trend", last.trend, "Smoothed weight")}${tile("lo", "Low", lo.kg, agoText(lo.n))}</div></section>`;
+  const gain = goalDir() > 0;
+  const tile = (cls, label, kg, sub) => `<div class="tile ${cls}"><span class="tl">${label}</span><span class="tv num">${fw(kg)}</span>${sub ? `<span class="ts">${sub}</span>` : ""}</div>`;
+  return `<section class="card"><div class="card-h"><h2>Recent stats</h2></div><div class="recent">
+    <canvas id="mini" aria-label="Weigh-ins over the last ${RECENT} days"></canvas>
+    <div class="tiles">${tile(gain ? "lo" : "hi", "High", hi.kg, agoText(hi.n))}${tile("la", "Latest", last.kg, "")}
+    ${tile("tr", "Trend", last.trend, "")}${tile(gain ? "hi" : "lo", "Low", lo.kg, agoText(lo.n))}</div></div></section>`;
+}
+// The recent stats chart: one column per day, the weigh-ins as a thin line, the trend in blue,
+// and the high and low as red and green lines along the top and bottom.
+function paintMini(cv, rows){
+  if (!cv) return;
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr; const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const recent = recentRows(rows), end = rows[rows.length-1].n, x0 = end - RECENT + 1;
+  const prev = rows.filter(r => r.n < x0).slice(-1), all = [...prev, ...recent];
+  const vals = recent.flatMap(r => [toU(r.kg), toU(r.trend)]);
+  let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < .6){ const m = (hi + lo)/2; lo = m - .3; hi = m + .3; }
+  const T = 6, B = 18, L = 2, Rp = 2, cw = (W - L - Rp)/RECENT;
+  const X = n => L + (n - x0 + .5)*cw, Y = v => T + (hi - v)/(hi - lo)*(H - T - B);
+  const [up, down] = upDown(), muted = css("--muted");
+  c.strokeStyle = css("--line"); c.lineWidth = 1;
+  for (let i = 0; i <= RECENT; i++){ const x = Math.round(L + i*cw) + .5; c.beginPath(); c.moveTo(x, T); c.lineTo(x, H - B); c.stroke(); }
+  for (const [v, col] of [[hi, up], [lo, down]]){ c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(W - Rp, Y(v)); c.stroke(); }
+  c.save(); c.beginPath(); c.rect(L, 0, W - L - Rp, H); c.clip();
+  c.strokeStyle = muted; c.lineWidth = 1.5; c.lineJoin = "round"; c.beginPath();
+  all.forEach((r, i) => i ? c.lineTo(X(r.n), Y(toU(r.kg))) : c.moveTo(X(r.n), Y(toU(r.kg)))); c.stroke();
+  c.strokeStyle = css("--trend"); c.lineWidth = 2.5; c.lineCap = "round"; c.beginPath(); curve(c, all.map(r => [X(r.n), Y(toU(r.trend))])); c.stroke();
+  c.restore();
+  c.font = `700 11px ${NUMFONT}`; c.textAlign = "center"; c.fillStyle = muted;
+  for (let n = x0; n <= end; n++) c.fillText(WD[parts(fromDnum(n)).wd].slice(0, 1), X(n), H - 4);
 }
 const RANGES = [[30,"1M"],[90,"3M"],[180,"6M"],[365,"1Y"],[0,"All"]];
 function chartCard(){
   const R = S.settings.chartRange;
-  return `<section class="card chart-card">
+  return `<section class="card chart-card"><div class="card-h"><h2>Weight chart</h2></div>
     <div class="chart-wrap"><canvas id="chart" aria-label="Weight chart"></canvas><div class="tip" id="tip" hidden></div></div>
     <div class="seg" id="rng">${RANGES.map(([v,l]) => `<button data-r="${v}" aria-pressed="${R === v}">${l}</button>`).join("")}</div>
   </section>`;
@@ -806,6 +845,7 @@ function bindProgress(rows){
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
   on("glSet", openGoalSheet); on("prSet", openCommit);
   if ($("#chart")){ mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange, chartIntro); chartIntro = false; }
+  paintMini($("#mini"), rows);
   const gb = $(".gbar > span");
   if (gb){ const to = +gb.dataset.to; goalShown = to; requestAnimationFrame(() => requestAnimationFrame(() => { gb.style.width = to*100 + "%"; })); }
 }
@@ -831,8 +871,9 @@ function curve(c, pts, cont){
     c.bezierCurveTo(x0 + h, y0 + m[i]*h, x1 - h, y1 - m[i+1]*h, x1, y1);
   }
 }
-// Draws the weight chart into context c at size W×H: grey dots for weigh-ins, the sage trend curve with a soft
-// fade under it, faint milestone lines and the dashed goal line. `prog` (0–1) reveals the curve from the left;
+// Draws the weight chart into context c at size W×H: the year and months along the top over alternating columns,
+// a thin line from the trend to each weigh-in with the gap shaded, the blue trend curve, faint milestone lines
+// and the dashed goal line. `prog` (0–1) reveals the curve from the left;
 // `sel` is the weigh-in being inspected. Returns the x scale and visible rows for the tooltip.
 function paintChart(c, W, H, allRows, R, prog, sel){
   const end = allRows[allRows.length-1].n;
@@ -844,28 +885,38 @@ function paintChart(c, W, H, allRows, R, prog, sel){
   const vals = rows.flatMap(r => [toU(r.kg), toU(r.trend)]); if (S.settings.goal != null && R === 0) vals.push(toU(S.settings.goal));
   let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1){ const m = (hi + lo)/2; lo = m - .5; hi = m + .5; }
   const st = niceStep(hi - lo, 4); lo = Math.floor(lo/st)*st; hi = Math.ceil(hi/st)*st;
-  const L = 40, Rp = 8, T = 10, B = 24;
+  const L = 40, Rp = 8, T = 40, B = 8;
   const X = n => L + (n - x0)/(x1 - x0)*(W - L - Rp);
   const Y = v => T + (hi - v)/(hi - lo)*(H - T - B);
-  const muted = css("--muted"), line = css("--line"), trend = css("--trend"), goal = css("--goal"), dot = css("--dot");
-  c.font = `500 11px ${NUMFONT}`; c.textBaseline = "middle";
+  const muted = css("--muted"), line = css("--line"), trend = css("--trend"), goal = css("--goal"), shade = css("--band");
+  c.font = `600 11px ${NUMFONT}`; c.textBaseline = "middle";
   for (let v = lo; v <= hi + 1e-9; v += st){
     c.strokeStyle = line; c.lineWidth = 1; c.beginPath(); c.moveTo(L, Math.round(Y(v)) + .5); c.lineTo(W - Rp, Math.round(Y(v)) + .5); c.stroke();
     c.fillStyle = muted; c.textAlign = "right"; c.fillText(v.toFixed(st < 1 ? 1 : 0), L - 8, Y(v));
   }
+  // Columns (days, weeks or months) shaded in turn, labelled along the top under the year.
   c.textAlign = "center"; c.textBaseline = "alphabetic";
-  const span = x1 - x0;
-  if (span <= 10){ for (let n = Math.ceil(x0); n <= end; n++){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(WD[p.wd], X(n), H - 6); } }
-  else if (span <= 45){ for (let n = Math.ceil(x0/7)*7 + 3; n <= x1; n += 7){ const p = parts(fromDnum(n)); c.fillStyle = muted; c.fillText(`${p.d} ${MON[p.m-1]}`, X(n), H - 6); } }
+  const span = x1 - x0, cols = [];
+  if (span <= 10) for (let n = Math.floor(x0); n <= end; n++) cols.push([n - .5, n + .5, WD[parts(fromDnum(n)).wd].toUpperCase()]);
+  else if (span <= 45){ for (let n = Math.floor(x0/7)*7; n <= x1; n += 7){ const p = parts(fromDnum(n + 3)); cols.push([n, n + 7, `${p.d} ${MON[p.m-1].toUpperCase()}`]); } }
   else {
-    const d0 = new Date(x0*DAY); let cur = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1));
-    const every = span > 1500 ? 12 : span > 500 ? 3 : span > 200 ? 2 : 1;
+    const every = span > 1500 ? 12 : span > 500 ? 3 : span > 200 ? 2 : 1, d0 = new Date(x0*DAY);
+    let cur = new Date(Date.UTC(d0.getUTCFullYear(), Math.floor(d0.getUTCMonth()/every)*every, 1));
     while (cur.getTime()/DAY <= x1){
-      const n = cur.getTime()/DAY, m = cur.getUTCMonth();
-      if (m % every === 0){ c.fillStyle = muted; c.fillText(every >= 12 || m === 0 ? String(cur.getUTCFullYear()) : MON[m], X(n), H - 6); }
-      cur = new Date(Date.UTC(cur.getUTCFullYear(), m + 1, 1));
+      const nx = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth() + every, 1));
+      cols.push([cur.getTime()/DAY, nx.getTime()/DAY, every >= 12 ? String(cur.getUTCFullYear()) : MON[cur.getUTCMonth()].toUpperCase()]);
+      cur = nx;
     }
   }
+  c.font = `700 10px ${NUMFONT}`;
+  cols.forEach(([a, b, label], i) => {
+    const xa = Math.max(L, X(a)), xb = Math.min(W - Rp, X(b)); if (xb <= xa) return;
+    if (i % 2 === 0){ c.fillStyle = shade; c.fillRect(xa, T, xb - xa, H - T - B); }
+    const lx = (xa + xb)/2, tw = c.measureText(label).width;
+    if (xb - xa > tw + 2 || cols.length <= 6){ c.fillStyle = muted; c.fillText(label, Math.max(L + tw/2, Math.min(W - Rp - tw/2, lx)), T - 8); }
+  });
+  const y0 = parts(fromDnum(Math.ceil(x0))).y, y1 = parts(fromDnum(end)).y;
+  c.font = `700 13px ${NUMFONT}`; c.fillStyle = css("--fg"); c.fillText(y0 === y1 ? String(y1) : `${y0} – ${y1}`, L + (W - L - Rp)/2, 13);
   // milestones and goal, labelled at the right edge
   const g = S.settings.goal;
   if (g != null){
@@ -883,7 +934,7 @@ function paintChart(c, W, H, allRows, R, prog, sel){
   }
   c.save(); c.beginPath(); c.rect(L, 0, W - L - Rp, H); c.clip();
   const firstIdx = allRows.indexOf(rows[0]); const lead = firstIdx > 0 ? [allRows[firstIdx-1], ...rows] : rows;
-  const up = css("--bad"), down = css("--good");
+  const [up, down] = upDown();
   const pts = lead.map(r => [X(r.n), Y(toU(r.trend))]), wp = lead.map(r => [X(r.n), Y(toU(r.kg))]);
   c.save(); c.beginPath(); c.rect(L, 0, (W - L - Rp)*prog + 2, H); c.clip();
   // The gap between each weigh-in and the trend: red where the scale read above the trend, green below it.
@@ -891,10 +942,12 @@ function paintChart(c, W, H, allRows, R, prog, sel){
     const band = () => { c.beginPath(); c.moveTo(wp[0][0], wp[0][1]); for (let i = 1; i < wp.length; i++) c.lineTo(wp[i][0], wp[i][1]); curve(c, pts.slice().reverse(), true); c.closePath(); };
     for (const [col, edge] of [[up, 0], [down, H]]){
       c.save(); c.beginPath(); curve(c, pts); c.lineTo(pts[pts.length-1][0] + 40, pts[pts.length-1][1]); c.lineTo(pts[pts.length-1][0] + 40, edge); c.lineTo(pts[0][0] - 40, edge); c.lineTo(pts[0][0] - 40, pts[0][1]); c.closePath(); c.clip();
-      band(); c.fillStyle = col; c.globalAlpha = .32; c.fill(); c.globalAlpha = 1; c.restore();
+      band(); c.fillStyle = col; c.globalAlpha = .4; c.fill(); c.globalAlpha = 1; c.restore();
     }
   }
-  if (rows.length <= 500) for (const r of rows){ c.fillStyle = r.kg > r.trend + 0.005 ? up : r.kg < r.trend - 0.005 ? down : dot; c.beginPath(); c.arc(X(r.n), Y(toU(r.kg)), rows.length > 150 ? 1.8 : 2.6, 0, 7); c.fill(); }
+  // a thin line from the trend to each weigh-in
+  if (rows.length <= 400){ c.strokeStyle = trend; c.lineWidth = rows.length > 120 ? 1 : 1.5; c.lineCap = "round";
+    for (const r of rows){ const x = X(r.n); c.beginPath(); c.moveTo(x, Y(toU(r.trend))); c.lineTo(x, Y(toU(r.kg))); c.stroke(); } }
   c.strokeStyle = trend; c.lineWidth = 3; c.lineJoin = "round"; c.lineCap = "round"; c.beginPath(); curve(c, pts); c.stroke();
   c.restore();
   const surface = css("--surface");
@@ -939,7 +992,7 @@ function mountChart(cv, tip, allRows, R, intro){
   cv.onpointerup = cv.onpointerleave = cv.onpointercancel = () => { tip.hidden = true; if (sel){ sel = null; draw(); } };
 }
 let resizeT; window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
-  if (tab === "progress" && $("#chart")){ const rows = computeTrend(); if (rows.length) mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange); }
+  if (tab === "progress" && $("#chart")){ const rows = computeTrend(); if (rows.length){ mountChart($("#chart"), $("#tip"), rows, S.settings.chartRange); paintMini($("#mini"), rows); } }
   placePill();
 }, 120); });
 
@@ -948,7 +1001,7 @@ function renderHistory(){
   const valid = computeTrend(), vIdx = new Map(valid.map((r, i) => [r.id, i]));
   const rows = S.entries.map(e => { const i = vIdx.get(e.id); return i == null ? { ...e, trend: null, excluded: true } : valid[i]; });
   const byMonth = new Map(); rows.forEach(r => { const k = r.date.slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(r); });
-  let html = `<h1 class="large">History<small>${S.entries.length} weigh-in${S.entries.length > 1 ? "s" : ""}</small></h1>`;
+  let html = `<p class="dateline">${S.entries.length} weigh-in${S.entries.length > 1 ? "s" : ""}</p>`;
   [...byMonth.keys()].sort().reverse().forEach(k => {
     const [y, m] = k.split("-").map(Number);
     // trend change across the month: end of this month against the end of the previous one
@@ -956,7 +1009,7 @@ function renderHistory(){
     const ch = inMonth.length ? inMonth[inMonth.length-1].trend - (before.length ? before[before.length-1].trend : inMonth[0].trend) : null;
     const chHtml = ch == null || (!before.length && inMonth.length < 2) ? "" : `<span class="num ${tone(ch)}">${arrow(ch)} ${Math.abs(toU(ch)).toFixed(1)} ${U()}</span>`;
     html += `<section class="card month"><div class="month-h"><h3>${MONF[m-1]} ${y}</h3>${chHtml}</div>
-      <div class="hhead hgrid"><span>Date</span><span>Weight</span><span class="c">Trend</span><span class="c">Week</span></div>`;
+      <div class="hhead hgrid"><span>Date</span><span>Recorded</span><span>Moving<br>average</span><span>Weekly<br>rate</span></div>`;
     byMonth.get(k).slice().reverse().forEach(r => {
       const p = parts(r.date);
       // change in trend over the 7 days up to this weigh-in
@@ -1058,8 +1111,7 @@ function openEntry(entry){
       <label class="item"><span class="k">Note</span><input id="en" maxlength="140" value="${esc(entry?.note || "")}" placeholder="Optional" style="width:60%"></label>
     </div>
     <p class="err" id="ee" hidden></p>
-    <button class="btn primary" id="es2">${entry ? "Save" : "Add weigh-in"}</button>
-    ${entry ? `<button type="button" class="btn danger" id="edel">Delete weigh-in</button>` : ""}
+    <div class="btns">${entry ? `<button type="button" class="btn danger" id="edel">Delete</button>` : ""}<button class="btn primary" id="es2">${entry ? "Save" : "Add weigh-in"}</button></div>
     <div class="pad" id="pad">${["1","2","3","4","5","6","7","8","9",".","0","del"].map(k => `<button type="button" data-k="${k}" aria-label="${k === "del" ? "Delete digit" : k}">${k === "del" ? BKSP : k}</button>`).join("")}</div>`);
   const w = sh.querySelector("#ew");
   const read = () => parseFloat(w.value.replace(",", "."));
@@ -1230,8 +1282,7 @@ function renderSettings(){
   const lab = (ic, k, h) => `<span class="k wi">${ico(ic[0], ic[1])}<span>${k}${h ? `<span class="h">${h}</span>` : ""}</span></span>`;
   const tgl = (ic, id, on, k, h) => `<label class="item">${lab(ic, k, h)}<input type="checkbox" class="tg" id="${id}" ${on ? "checked" : ""}></label>`;
   const inp = (ic, id, k, val, ph, h) => `<label class="item">${lab(ic, k, h)}<input id="${id}" class="num" inputmode="decimal" value="${val}" placeholder="${ph}"></label>`;
-  let html = `<h1 class="large">Settings</h1>
-    <div class="group-t">Goal</div><div class="list">
+  let html = `<div class="group-t">Goal</div><div class="list">
       ${inp(["goal", "goal"], "sg", "Goal weight", s.goal == null ? "" : toU(s.goal).toFixed(1), U())}
       ${inp(["start", "goal"], "ss", "Starting weight", s.start == null ? "" : toU(s.start).toFixed(1), S.entries[0] ? fw(S.entries[0].kg) : U(), "Defaults to your first weigh-in")}
       ${inp(["steps", "goal"], "sm", "Milestone every", s.step == null ? "" : toU(s.step).toFixed(1), U() === "lb" ? "5.0" : "2.0")}

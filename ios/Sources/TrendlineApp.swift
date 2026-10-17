@@ -8,8 +8,8 @@ import UniformTypeIdentifiers
 /// Matches the page background in both themes so there is never a flash on launch or rotation.
 let appBackground = UIColor { traits in
     traits.userInterfaceStyle == .dark
-        ? UIColor(red: 14/255, green: 17/255, blue: 24/255, alpha: 1)
-        : UIColor(red: 242/255, green: 244/255, blue: 248/255, alpha: 1)
+        ? UIColor(red: 18/255, green: 17/255, blue: 22/255, alpha: 1)
+        : UIColor(red: 242/255, green: 242/255, blue: 247/255, alpha: 1)
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
