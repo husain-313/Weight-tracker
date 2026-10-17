@@ -62,9 +62,15 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
           cat > ios/release-notes.md <<NOTES
-          Version 2.0.1:
-          - The weight chart fills its width when you have only a few days of weigh-ins, instead of squeezing them against the right edge
-          - The newest point on the chart is no longer cut in half
+          Version 2.1:
+          - Smoother chart: the trend is a soft curve with a gentle fade under it, and it draws itself in
+          - Press and drag on the chart for a guide line and a highlighted weigh-in
+          - A ruler under the number when you weigh in; drag the number or the ruler
+          - The trend weight counts to its new value, with an arrow icon for the weekly change
+          - Softer cards, a thicker goal bar with milestone notches, and a cleaner prediction date
+          - The tab bar's selected tab has a sliding highlight
+          - History: month headers stay pinned while you scroll, the trend difference is a small pill, Apple Health weigh-ins get a badge
+          - Icons in Settings and a new app icon in the sand and sage colours
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK.
@@ -75,6 +81,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 2.0.1 (build ${{ github.run_number }})
+          name: Trendline 2.1 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa
