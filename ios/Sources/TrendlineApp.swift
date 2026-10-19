@@ -508,7 +508,7 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 done()
                 return
             }
-            self.importInBackground(done)
+            self.importInBackground { self.rescheduleReminder(done) }
         }
     }
 
@@ -552,10 +552,6 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             self.stateLock.unlock()
             self.backupQueue.async { self.writeBackups(data) }
 
-            let today = Bridge.day(Date())
-            if addedDays.contains(today) {
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["weigh-0"])
-            }
             if let newest = addedDays.max(), prefs["notifyWeigh"] as? Bool != false {
                 self.notifyWeighIn(day: newest, entries: entries, prefs: prefs)
             }
@@ -563,32 +559,43 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     }
 
     /// Same smoothing as the page: exponential average that respects gaps between weigh-ins.
-    private func notifyWeighIn(day: String, entries: [[String: Any]], prefs: [String: Any]) {
+    /// Leaves out weigh-ins the page doesn't count (ignored, or unusual and not confirmed).
+    private func trendSeries(_ entries: [[String: Any]], prefs: [String: Any]) -> [(day: String, kg: Double, trend: Double)] {
         let alpha = prefs["smooth"] as? Double ?? 0.1
-        var trend: Double?
-        var previousTrend: Double?
+        var series: [(day: String, kg: Double, trend: Double)] = []
+        var trend = 0.0
         var prevDay: Double?
-        var weight = 0.0
         for e in entries {
             guard let d = e["date"] as? String, let kg = e["kg"] as? Double, let n = Bridge.dayNumber(d) else { continue }
-            previousTrend = trend
-            if let t = trend, let p = prevDay {
-                trend = t + (1 - pow(1 - alpha, max(1, n - p))) * (kg - t)
+            if e["ignored"] as? Bool == true || (e["outlier"] as? Bool == true && e["keep"] as? Bool != true) { continue }
+            if let p = prevDay {
+                trend += (1 - pow(1 - alpha, max(1, n - p))) * (kg - trend)
             } else { trend = kg }
             prevDay = n
-            if d == day { weight = kg; break }
+            series.append((d, kg, trend))
         }
-        guard let t = trend else { return }
+        return series
+    }
+
+    /// A weight in the person's unit with one decimal, as the page shows it.
+    private func weightText(_ kg: Double, _ prefs: [String: Any]) -> String {
         let lb = (prefs["unit"] as? String) == "lb"
-        let f: (Double) -> String = { String(format: "%.1f", lb ? $0 * 2.2046226218 : $0) }
-        let unit = lb ? "lb" : "kg"
+        return String(format: "%.1f", lb ? kg * 2.2046226218 : kg)
+    }
+
+    private func notifyWeighIn(day: String, entries: [[String: Any]], prefs: [String: Any]) {
+        let series = trendSeries(entries, prefs: prefs)
+        guard let i = series.firstIndex(where: { $0.day == day }) else { return }
+        let f: (Double) -> String = { self.weightText($0, prefs) }
+        let unit = (prefs["unit"] as? String) == "lb" ? "lb" : "kg"
+        let t = series[i].trend
         var body = "Trend \(f(t)) \(unit)"
-        if let p = previousTrend {
-            let delta = t - p
+        if i > 0 {
+            let delta = t - series[i - 1].trend
             body += abs(delta) < 0.05 ? " · steady" : (delta < 0 ? " · ↓ \(f(abs(delta)))" : " · ↑ \(f(delta))")
         }
         let content = UNMutableNotificationContent()
-        content.title = "Weighed in: \(f(weight)) \(unit)"
+        content.title = "Weighed in: \(f(series[i].kg)) \(unit)"
         content.body = body
         content.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "weighed-\(day)", content: content, trigger: nil))
@@ -621,17 +628,23 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
 
     // MARK: Reminders
 
-    /// Schedules one notification per day for the next 30 days, skipping today if already weighed.
-    private func reminder(enabled: Bool, hour: Int, minute: Int, weighedToday: Bool, text: String) {
+    /// iOS keeps at most 64 pending notifications per app.
+    private static let reminderDays = 60
+
+    /// Schedules one notification per day for the next 60 days, skipping today if already weighed.
+    /// The page reschedules whenever it opens, and so does a background import from Apple Health.
+    private func reminder(enabled: Bool, hour: Int, minute: Int, weighedToday: Bool, text: String,
+                          done: (() -> Void)? = nil) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: (0..<40).map { "weigh-\($0)" })
-        guard enabled else { return }
+        center.removePendingNotificationRequests(withIdentifiers: (0..<70).map { "weigh-\($0)" })
+        guard enabled else { done?(); return }
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            guard granted else { self.send("reminder-denied", [:]); return }
+            guard granted else { self.send("reminder-denied", [:]); done?(); return }
             let calendar = Calendar.current
             let now = Date()
             let today = calendar.startOfDay(for: now)
-            for offset in 0..<30 {
+            let added = DispatchGroup()
+            for offset in 0..<Bridge.reminderDays {
                 if offset == 0 && weighedToday { continue }
                 guard let day = calendar.date(byAdding: .day, value: offset, to: today),
                       let fire = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day),
@@ -642,9 +655,42 @@ final class Bridge: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 content.sound = .default
                 let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
                 let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
-                center.add(UNNotificationRequest(identifier: "weigh-\(offset)", content: content, trigger: trigger))
+                added.enter()
+                center.add(UNNotificationRequest(identifier: "weigh-\(offset)", content: content, trigger: trigger)) { _ in added.leave() }
             }
+            added.notify(queue: .main) { done?() }
         }
+    }
+
+    /// Reschedules the reminder from saved settings while the page isn't running (woken by a smart scale),
+    /// so the reminders keep going even if the app isn't opened for weeks.
+    private func rescheduleReminder(_ done: @escaping () -> Void) {
+        guard let text = loadState(),
+              let state = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else { done(); return }
+        let prefs = settings(of: state)
+        guard prefs["remind"] as? Bool == true else { done(); return }
+        let time = (prefs["remindTime"] as? String ?? "07:30").split(separator: ":").compactMap { Int($0) }
+        let entries = state["entries"] as? [[String: Any]] ?? []
+        var body = "Step on the scale before breakfast."
+        if let last = trendSeries(entries, prefs: prefs).last {
+            let unit = (prefs["unit"] as? String) == "lb" ? "lb" : "kg"
+            body = "Your trend is \(weightText(last.trend, prefs)) \(unit). " + body
+        }
+        reminder(enabled: true, hour: time.count == 2 ? time[0] : 7, minute: time.count == 2 ? time[1] : 30,
+                 weighedToday: entries.contains { $0["date"] as? String == Bridge.day(Date()) },
+                 text: body, done: done)
+    }
+
+    // MARK: Text size
+
+    /// The page's root font size: follows the iPhone's text size (17 at the default),
+    /// capped at the largest standard size so the layout still fits.
+    static func textSizePx() -> Int {
+        Int(min(23, max(14, UIFont.preferredFont(forTextStyle: .body).pointSize)).rounded())
+    }
+
+    @objc func textSizeChanged() {
+        send("text-size", ["px": Bridge.textSizePx()])
     }
 
     // MARK: Share sheet
@@ -727,7 +773,8 @@ struct WebView: UIViewRepresentable {
         let info = Bundle.main.infoDictionary
         let version = "\(info?["CFBundleShortVersionString"] as? String ?? "1.0") (\(info?["CFBundleVersion"] as? String ?? "1"))"
         content.addUserScript(WKUserScript(
-            source: "window.__NATIVE_STATE__ = \(stateLiteral); window.__APP_VERSION__ = \"\(version)\";",
+            source: "window.__NATIVE_STATE__ = \(stateLiteral); window.__APP_VERSION__ = \"\(version)\";"
+                + " document.documentElement.style.fontSize = \"\(Bridge.textSizePx())px\";",
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
         content.add(bridge, name: "store")
         content.add(bridge, name: "share")
@@ -745,6 +792,8 @@ struct WebView: UIViewRepresentable {
         if #available(iOS 16.4, *) { webView.isInspectable = false }
         webView.navigationDelegate = bridge
         bridge.webView = webView
+        NotificationCenter.default.addObserver(bridge, selector: #selector(Bridge.textSizeChanged),
+                                               name: UIContentSizeCategory.didChangeNotification, object: nil)
 
         if let index = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "www") {
             webView.loadFileURL(index, allowingReadAccessTo: index.deletingLastPathComponent())

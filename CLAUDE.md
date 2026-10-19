@@ -24,6 +24,6 @@ See README.md for features and project layout.
 
 ## Data
 
-- Saved state has a `schema` version (`SCHEMA` in `ios/www/index.html`). When its shape changes,
+- Saved state has a `schema` version (`SCHEMA` in `ios/www/js/core.js`). When its shape changes,
   bump `SCHEMA` and add a `MIGRATIONS[old]` step; backups from a newer schema are refused on restore.
 - Git commits use the identity `Claude <noreply@anthropic.com>` (no global git identity is set on this machine).

@@ -62,9 +62,11 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
           cat > ios/release-notes.md <<NOTES
-          Version 2.5:
-          - History: each month opens with its low weigh-in, the trend per week, and the low compared with last month
-          - Settings is a short list of pages (Weight goal, Units and trend, Apple Health, Reminder, Face ID, Appearance, Backup and data, About and updates) with plain line icons
+          Version 2.6:
+          - Daily reminder is scheduled 60 days ahead (was 30), and a background import from Apple Health renews it, so it keeps going even if you don't open the app
+          - Text follows the iPhone's text size (Settings › Display & Brightness › Text Size), up to the largest standard size
+          - Weigh-in notifications leave out ignored weigh-ins when working out the trend, like the app does
+          - The interface code is split into smaller files (no visible change)
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK.
@@ -75,6 +77,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 2.5 (build ${{ github.run_number }})
+          name: Trendline 2.6 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa

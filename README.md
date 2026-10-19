@@ -19,7 +19,10 @@ Every push to `main` builds an unsigned `TrendlineScale.ipa` with GitHub Actions
 Install it with a signing service such as Signulous, keeping the same bundle ID so your data carries over.
 
 ## Project layout
-- `ios/www/index.html` — the app's interface and logic
+- `ios/www/` — the app's interface: `index.html` (markup), `css/app.css`, and `js/` loaded in order
+  (`core` state and units, `trend` math, `ui` helpers and sheets, `native` bridge, Apple Health and updates,
+  `celebrate`, `app` tabs and rendering, `progress` and its charts, `history`, `entry` weigh-in sheet,
+  `settings` with backup and restore, `boot` last)
 - `ios/Sources/TrendlineApp.swift` — native shell: storage, backups, Apple Health, background sync, notifications, Face ID, haptics, sharing, update check
 - `ios/project.yml` — XcodeGen project spec
 - `.github/workflows/ios.yml` — builds the IPA and publishes a release
