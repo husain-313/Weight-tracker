@@ -92,7 +92,7 @@ function renderSettings(){
       const v = e.target.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
       const older = S.settings.healthFrom && v < S.settings.healthFrom;
       S.settings.healthFrom = v;
-      const before = S.entries.length; S.entries = S.entries.filter(x => !(x.src === "health" && x.date < v)); const removed = before - S.entries.length;
+      const removed = pruneBeforeFrom();
       S.settings.healthIgnore = S.settings.healthIgnore.filter(d => d >= v);
       save(); haptic("light"); resetCelebrations(); render();
       if (older) syncHealth(true);

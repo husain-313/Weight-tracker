@@ -62,9 +62,9 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-version)
           XC=$(xcodebuild -version | head -1)
           cat > ios/release-notes.md <<NOTES
-          Version 2.7:
-          - Connecting Apple Health imports every weigh-in already there, not just from today
-          - Apple Health settings has "Import all weigh-ins" to bring back readings from before the Import from date
+          Version 2.8:
+          - Import from now removes every Apple Health weigh-in before that date, including this app's own earlier readings that came back after a reinstall; weigh-ins you typed in stay
+          - Fixes the starting weight (and so the goal and prediction) when an old reading from Apple Health was the first one
           Unsigned IPA. Install with Sideloadly, AltStore or a similar signing tool.
 
           Built with $XC, iOS SDK $SDK.
@@ -75,6 +75,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Trendline 2.7 (build ${{ github.run_number }})
+          name: Trendline 2.8 (build ${{ github.run_number }})
           body_path: ios/release-notes.md
           files: ios/TrendlineScale.ipa

@@ -26,9 +26,20 @@ function upgrade(d){
   d.schema = SCHEMA;
   return d;
 }
+// Weigh-ins that came from Apple Health: from a scale or another app, or this app's own earlier
+// readings brought back after a reinstall. Ones you typed in yourself are never removed.
+const fromHealth = e => e.src === "health" || !!e.restored;
+// Drops Apple Health weigh-ins dated before "Import from". Returns how many were removed.
+function pruneBeforeFrom(){
+  const from = S.settings.healthFrom; if (!from) return 0;
+  const before = S.entries.length;
+  S.entries = S.entries.filter(e => !(fromHealth(e) && e.date < from));
+  return before - S.entries.length;
+}
 function normalize(){
   const s = S.settings;
   if (!Array.isArray(s.healthIgnore)) s.healthIgnore = [];
+  pruneBeforeFrom();
   if (!RANGES.some(r => r[0] === s.chartRange)) s.chartRange = 90;
 }
 function load(){
@@ -40,8 +51,9 @@ function load(){
       S.entries = Array.isArray(d.entries) ? d.entries : []; S.settings = {...DEFAULTS, ...(d.settings || {})};
     }
   }catch(e){}
+  const n = S.entries.length;
   normalize(); sortEntries();
-  if (migrated) save();
+  if (migrated || S.entries.length !== n) save();
 }
 function save(){
   const json = JSON.stringify(S);
