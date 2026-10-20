@@ -51,7 +51,7 @@ function renderEmpty(){
     <div class="btns" style="width:100%;max-width:340px;flex-direction:column">
       <button class="btn primary" id="e1">Add a weigh-in</button>
       ${NATIVE ? (S.settings.healthRead
-        ? `<button class="btn" id="e2" style="color:var(--trend)">✓ Apple Health connected</button><p class="lbl" style="margin:-4px 0 0">Importing weigh-ins from ${fmtDate(S.settings.healthFrom || todayStr())}. Tap to check again.</p>`
+        ? `<button class="btn" id="e2" style="color:var(--trend)">✓ Apple Health connected</button><p class="lbl" style="margin:-4px 0 0">${S.settings.healthFrom ? `Importing weigh-ins from ${fmtDate(S.settings.healthFrom)}` : "Importing all your weigh-ins"}. Tap to check again.</p>`
         : `<button class="btn" id="e2">Connect Apple Health</button>`) : ""}
     </div>
     <button class="link" id="e4">Restore a backup</button>

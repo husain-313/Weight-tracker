@@ -39,7 +39,8 @@ function renderSettings(){
   else if (setPage === "health") html = `<div class="list">
       ${tgl(["heart"], "hr", s.healthRead, "Import weigh-ins", "Weight from your smart scale or other apps")}
       ${tgl(["save"], "hw", s.healthWrite, "Save weigh-ins to Health", "Weights you log here are added to Apple Health")}
-      ${s.healthRead ? `<label class="item">${lab(["calendar"], "Import from", "Older readings in Apple Health are ignored")}<input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}"></label>` : ""}
+      ${s.healthRead ? `<label class="item">${lab(["calendar"], "Import from", s.healthFrom ? "Older readings in Apple Health are ignored" : "All readings in Apple Health are imported")}<input type="date" id="hf" value="${s.healthFrom || ""}" max="${todayStr()}"></label>` : ""}
+      ${s.healthRead && s.healthFrom ? `<button class="item" id="hfAll">${lab(["refresh"], "Import all weigh-ins", "Bring in everything in Apple Health, not just from this date")}</button>` : ""}
       ${s.healthRead ? tgl(["bell"], "hn", s.notifyWeigh !== false, "Notify after each weigh-in", "Weight and trend as soon as your scale syncs") : ""}
       ${s.healthRead ? `<button class="item" id="hs">${lab(["refresh"], "Check now")}<span class="val">${s.healthSince ? "Last " + fmtDate(s.healthSince) : "Not yet"}</span></button>` : ""}
     </div>`;
@@ -97,6 +98,7 @@ function renderSettings(){
       if (older) syncHealth(true);
       toast(removed ? `Removed ${removed} older Apple Health weigh-in${removed > 1 ? "s" : ""}` : `Importing from ${fmtDate(v)}`);
     };
+    const hfAll = $("#hfAll"); if (hfAll) hfAll.onclick = () => { S.settings.healthFrom = null; save(); haptic("light"); resetCelebrations(); render(); connectPending = true; syncHealth(true); toast("Importing all weigh-ins from Apple Health…"); };
     const hs = $("#hs"); if (hs) hs.onclick = () => { syncHealth(true); toast("Checking Apple Health…"); };
     $("#rm").onchange = e => { S.settings.remind = e.target.checked; save(); haptic("light"); scheduleReminder(); render(); if (e.target.checked) toast(`Reminder set for ${S.settings.remindTime}`); };
     $("#rt").onchange = e => { if (!e.target.value) return; S.settings.remindTime = e.target.value; save(); scheduleReminder(); toast(`Reminder set for ${e.target.value}`); };

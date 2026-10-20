@@ -80,13 +80,14 @@ function mergeHealth(samples, error, own){
     if (added) toast(`Added ${added} weigh-in${added > 1 ? "s" : ""} from Apple Health`);
     checkCelebrate(added > 3);
   } else {
-    if (connectPending) toast(`Apple Health connected ✓ No weigh-ins since ${fmtDate(S.settings.healthFrom || todayStr())} yet.`);
+    if (connectPending) toast(S.settings.healthFrom ? `Apple Health connected ✓ No weigh-ins since ${fmtDate(S.settings.healthFrom)} yet.` : "Apple Health connected ✓ No new weigh-ins.");
     render();
   }
   connectPending = false;
 }
 function connectHealth(){
-  S.settings.healthRead = true; if (!S.settings.healthFrom) S.settings.healthFrom = todayStr(); save(); connectPending = true;
+  // Connecting imports every weigh-in already in Apple Health; "Import from" in Settings can limit it later.
+  S.settings.healthRead = true; S.settings.healthFrom = null; save(); connectPending = true;
   nativeCmd("healthAuthorize", { write: S.settings.healthWrite });
   if (S.settings.notifyWeigh !== false) nativeCmd("notifyAuth");
   toast("Checking Apple Health…");
